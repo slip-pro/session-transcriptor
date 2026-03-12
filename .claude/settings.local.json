@@ -1,0 +1,21 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(pandoc \"C:/Users/user/Downloads/Telegram Desktop/mentoring_transcript \\(2\\).docx\" -o /tmp/transcript.md)",
+      "Bash(python scripts/office/unpack.py \"C:/Users/user/Downloads/Telegram Desktop/mentoring_transcript \\(2\\).docx\" /tmp/transcript_unpacked/)",
+      "Bash(python \"C:/Users/user/AppData/Roaming/Claude/local-agent-mode-sessions/skills-plugin/8379e1d3-8d1e-4537-a19d-2fe7d41951fa/144fa89b-01f7-48dc-ab2f-a988476bb392/skills/docx/scripts/office/unpack.py\" \"C:/Users/user/Downloads/Telegram Desktop/mentoring_transcript \\(2\\).docx\" /tmp/transcript_unpacked/)",
+      "mcp__Desktop_Commander__list_directory",
+      "WebSearch",
+      "mcp__plugin_context7_context7__resolve-library-id",
+      "mcp__plugin_context7_context7__query-docs",
+      "WebFetch(domain:developers.deepgram.com)",
+      "Bash(npm install:*)",
+      "Bash(npx tsc:*)",
+      "Bash(rm src/bot/handlers.ts src/bot/index.ts)",
+      "Bash(rmdir src/bot)",
+      "Bash(npm create:*)",
+      "Bash(npm uninstall:*)",
+      "Bash(npm run:*)"
+    ]
+  }
+}

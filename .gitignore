@@ -1,0 +1,13 @@
+node_modules/
+dist/
+.env
+*.tgz
+*.log
+tmp/
+auido/
+*.m4a
+*.mp3
+*.wav
+*.docx
+*_utterances.json
+*_lines.json
