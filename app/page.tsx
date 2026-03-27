@@ -21,8 +21,9 @@ const translations = {
     hint: "Распознавание через Deepgram, скачивание Word.",
     footer:
       "Аудио не сохраняется — файл обрабатывается в памяти и удаляется сразу после расшифровки. Распознавание речи выполняется через Deepgram.",
-    donateRub: "Поддержать в рублях ☕",
-    donateEur: "Поддержать в евро ☕",
+    donateText: "Если вам понравился сервис, вы можете поддержать автора: ",
+    donateRub: "поддержать в рублях",
+    donateEur: "поддержать в евро",
     unexpectedError: "Неожиданная ошибка",
     defaultError: "Не получилось обработать файл.",
   },
@@ -44,8 +45,9 @@ const translations = {
     hint: "Transcription via Deepgram, download as Word.",
     footer:
       "Audio is not stored — your file is processed in memory and discarded immediately after transcription. Speech recognition is powered by Deepgram.",
-    donateRub: "Support in RUB ☕",
-    donateEur: "Support in EUR ☕",
+    donateText: "If you found this tool helpful, you can support the creator: ",
+    donateRub: "support in RUB",
+    donateEur: "support in EUR",
     unexpectedError: "Unexpected error",
     defaultError: "Could not process the file.",
   },
@@ -213,26 +215,28 @@ export default function Home() {
           </form>
         </section>
 
-        <footer className="flex flex-col gap-3 text-sm text-zinc-600">
+        <footer className="flex flex-col gap-2 text-sm text-zinc-600">
           <p>{t.footer}</p>
-          <div className="flex flex-wrap gap-2">
+          <p>
+            {t.donateText}
             <a
               href="https://www.tinkoff.ru/rm/r_GWWuGKdimU.gmQAaLNhPZ/p6XLD28818"
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-white/70 px-4 py-1.5 text-sm font-medium text-zinc-700 ring-1 ring-zinc-900/10 transition hover:bg-white hover:ring-zinc-900/20"
+              className="underline underline-offset-2 hover:text-zinc-900"
             >
               {t.donateRub}
             </a>
+            {" · "}
             <a
               href="https://revolut.me/aleksaue7s/pocket/IJ2bd9k6na"
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-white/70 px-4 py-1.5 text-sm font-medium text-zinc-700 ring-1 ring-zinc-900/10 transition hover:bg-white hover:ring-zinc-900/20"
+              className="underline underline-offset-2 hover:text-zinc-900"
             >
               {t.donateEur}
             </a>
-          </div>
+          </p>
         </footer>
       </main>
     </div>
