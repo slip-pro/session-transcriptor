@@ -14,7 +14,9 @@ const translations = {
     clientPlaceholder: "Напр. Ирина",
     date: "Дата",
     audioLabel: "Аудио‑файл (mp3, m4a, wav)",
-    submit: "Сделать транскрипт (ICF)",
+    chooseFile: "Выбрать файл",
+    noFile: "Файл не выбран",
+    submit: "Сделать транскрипт",
     submitting: "Обрабатываю…",
     hint: "Распознавание через Deepgram, скачивание Word.",
     footer:
@@ -33,7 +35,9 @@ const translations = {
     clientPlaceholder: "E.g. Irina",
     date: "Date",
     audioLabel: "Audio file (mp3, m4a, wav)",
-    submit: "Create transcript (ICF)",
+    chooseFile: "Choose file",
+    noFile: "No file selected",
+    submit: "Create transcript",
     submitting: "Processing…",
     hint: "Transcription via Deepgram, download as Word.",
     footer:
@@ -69,6 +73,7 @@ export default function Home() {
       formData.append("coachName", coachName);
       formData.append("clientName", clientName);
       formData.append("sessionDate", sessionDate);
+      formData.append("lang", lang);
 
       const res = await fetch("/api/transcribe", {
         method: "POST",
@@ -161,17 +166,25 @@ export default function Home() {
               </label>
             </div>
 
-            <label className="flex flex-col gap-2">
+            <div className="flex flex-col gap-2">
               <span className="text-sm font-medium text-zinc-800">
                 {t.audioLabel}
               </span>
-              <input
-                type="file"
-                accept="audio/*"
-                onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-                className="block w-full cursor-pointer rounded-xl bg-white px-4 py-3 text-sm text-zinc-800 ring-1 ring-zinc-900/10 file:mr-4 file:rounded-lg file:border-0 file:bg-rose-100 file:px-3 file:py-2 file:text-sm file:font-medium file:text-rose-900 hover:ring-zinc-900/15 focus:outline-none focus:ring-2 focus:ring-rose-300"
-              />
-            </label>
+              <label className="flex cursor-pointer items-center gap-3 rounded-xl bg-white px-4 py-3 text-sm text-zinc-800 ring-1 ring-zinc-900/10 hover:ring-zinc-900/20 focus-within:ring-2 focus-within:ring-rose-300">
+                <input
+                  type="file"
+                  accept="audio/*"
+                  onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+                  className="sr-only"
+                />
+                <span className="shrink-0 rounded-lg bg-rose-100 px-3 py-1.5 text-sm font-medium text-rose-900">
+                  {t.chooseFile}
+                </span>
+                <span className="truncate text-zinc-500">
+                  {file ? file.name : t.noFile}
+                </span>
+              </label>
+            </div>
 
             {error ? (
               <div className="rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-900 ring-1 ring-rose-200">
@@ -186,7 +199,10 @@ export default function Home() {
                 disabled={!canSubmit}
                 className="inline-flex h-11 items-center justify-center rounded-xl bg-zinc-900 px-5 text-sm font-medium text-white shadow-sm transition enabled:hover:bg-zinc-800 focus:outline-none focus:ring-2 focus:ring-rose-300 disabled:cursor-not-allowed disabled:opacity-50"
               >
-                {isLoading ? t.submitting : t.submit}
+                <span className="relative inline-flex items-center justify-center">
+                  <span className={isLoading ? "invisible" : ""}>{t.submit}</span>
+                  <span className={`absolute inset-0 flex items-center justify-center${isLoading ? "" : " invisible"}`}>{t.submitting}</span>
+                </span>
               </button>
               <p className="text-sm text-zinc-600">{t.hint}</p>
             </div>

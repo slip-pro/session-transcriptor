@@ -230,17 +230,48 @@ function dataCell(text: string, width: number): TableCell {
   });
 }
 
-function buildHeaderRow(): TableRow {
+function buildHeaderRow(L: typeof docLabels[keyof typeof docLabels]): TableRow {
   return new TableRow({
     children: [
       headerCell("№", COL_NUM),
       headerCell("Time-code", COL_TIME),
-      headerCell("Роль", COL_SPEAKER),
-      headerCell("", COL_CONTENT),
-      headerCell("Mentor’s comments", COL_COMMENT),
+      headerCell(L.colRole, COL_SPEAKER),
+      headerCell(L.colContent, COL_CONTENT),
+      headerCell(L.colComment, COL_COMMENT),
     ],
   });
 }
+
+const docLabels = {
+  ru: {
+    coach: "Коуч",
+    client: "Клиент",
+    consentLabel: "Разрешение на запись и использование: ",
+    consentValue: "получено, зафиксировано голосом в записи.",
+    dateLabel: "Дата сессии: ",
+    colRole: "Роль",
+    colContent: "",
+    colComment: "Mentor's comments",
+    speakerCoach: "Коуч",
+    speakerClient: "Клиент",
+    speakerUnknown: "Speaker",
+  },
+  en: {
+    coach: "Coach",
+    client: "Client",
+    consentLabel: "Recording consent: ",
+    consentValue: "obtained, confirmed verbally on the recording.",
+    dateLabel: "Session date: ",
+    colRole: "Role",
+    colContent: "",
+    colComment: "Mentor's comments",
+    speakerCoach: "Coach",
+    speakerClient: "Client",
+    speakerUnknown: "Speaker",
+  },
+} as const;
+
+type DocLang = keyof typeof docLabels;
 
 export async function POST(req: Request) {
   const formData = await req.formData();
@@ -248,6 +279,9 @@ export async function POST(req: Request) {
   const coachName = String(formData.get("coachName") ?? "").trim() || "—";
   const clientName = String(formData.get("clientName") ?? "").trim() || "—";
   const sessionDate = String(formData.get("sessionDate") ?? "").trim() || "—";
+  const rawLang = String(formData.get("lang") ?? "ru");
+  const lang: DocLang = rawLang === "en" ? "en" : "ru";
+  const L = docLabels[lang];
 
   if (!(file instanceof File)) {
     return NextResponse.json(
@@ -321,14 +355,14 @@ export async function POST(req: Request) {
     new Paragraph({
       spacing: { after: 100 },
       children: [
-        new TextRun({ text: "Коуч: ", bold: true, font: "Calibri", size: 24 }),
+        new TextRun({ text: `${L.coach}: `, bold: true, font: "Calibri", size: 24 }),
         new TextRun({ text: coachName, font: "Calibri", size: 24 }),
       ],
     }),
     new Paragraph({
       spacing: { after: 100 },
       children: [
-        new TextRun({ text: "Клиент: ", bold: true, font: "Calibri", size: 24 }),
+        new TextRun({ text: `${L.client}: `, bold: true, font: "Calibri", size: 24 }),
         new TextRun({ text: clientName, font: "Calibri", size: 24 }),
       ],
     }),
@@ -336,13 +370,13 @@ export async function POST(req: Request) {
       spacing: { after: 100 },
       children: [
         new TextRun({
-          text: "Разрешение на запись и использование: ",
+          text: L.consentLabel,
           bold: true,
           font: "Calibri",
           size: 24,
         }),
         new TextRun({
-          text: "получено, зафиксировано голосом в записи.",
+          text: L.consentValue,
           font: "Calibri",
           size: 24,
         }),
@@ -352,7 +386,7 @@ export async function POST(req: Request) {
       spacing: { after: 300 },
       children: [
         new TextRun({
-          text: "Дата сессии: ",
+          text: L.dateLabel,
           bold: true,
           font: "Calibri",
           size: 24,
@@ -363,11 +397,11 @@ export async function POST(req: Request) {
   ];
 
   const rows: TableRow[] = [
-    buildHeaderRow(),
+    buildHeaderRow(L),
     ...mergedUtterances.map((u, idx) => {
       const role = rolesBySpeaker[u.speaker];
       const speakerLabel =
-        role === "coach" ? "Коуч" : role === "client" ? "Клиент" : `Speaker ${u.speaker}`;
+        role === "coach" ? L.speakerCoach : role === "client" ? L.speakerClient : `${L.speakerUnknown} ${u.speaker}`;
       return new TableRow({
         // важно: не задаём cantSplit вообще (Word иногда трактует это как запрет переноса)
         height: { value: 0, rule: HeightRule.AUTO },
