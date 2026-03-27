@@ -20,7 +20,9 @@ const translations = {
     submitting: "Обрабатываю…",
     hint: "Распознавание через Deepgram, скачивание Word.",
     footer:
-      "Конфиденциальность и хранение данных добавим позже — сейчас делаем первую рабочую версию интерфейса.",
+      "Аудио не сохраняется — файл обрабатывается в памяти и удаляется сразу после расшифровки. Распознавание речи выполняется через Deepgram.",
+    donateRub: "Поддержать в рублях ☕",
+    donateEur: "Поддержать в евро ☕",
     unexpectedError: "Неожиданная ошибка",
     defaultError: "Не получилось обработать файл.",
   },
@@ -41,7 +43,9 @@ const translations = {
     submitting: "Processing…",
     hint: "Transcription via Deepgram, download as Word.",
     footer:
-      "Privacy and data retention features coming soon — this is the first working version.",
+      "Audio is not stored — your file is processed in memory and discarded immediately after transcription. Speech recognition is powered by Deepgram.",
+    donateRub: "Support in RUB ☕",
+    donateEur: "Support in EUR ☕",
     unexpectedError: "Unexpected error",
     defaultError: "Could not process the file.",
   },
@@ -209,8 +213,26 @@ export default function Home() {
           </form>
         </section>
 
-        <footer className="text-sm text-zinc-600">
+        <footer className="flex flex-col gap-3 text-sm text-zinc-600">
           <p>{t.footer}</p>
+          <div className="flex flex-wrap gap-2">
+            <a
+              href="https://www.tinkoff.ru/rm/r_GWWuGKdimU.gmQAaLNhPZ/p6XLD28818"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-white/70 px-4 py-1.5 text-sm font-medium text-zinc-700 ring-1 ring-zinc-900/10 transition hover:bg-white hover:ring-zinc-900/20"
+            >
+              {t.donateRub}
+            </a>
+            <a
+              href="https://revolut.me/aleksaue7s/pocket/IJ2bd9k6na"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-white/70 px-4 py-1.5 text-sm font-medium text-zinc-700 ring-1 ring-zinc-900/10 transition hover:bg-white hover:ring-zinc-900/20"
+            >
+              {t.donateEur}
+            </a>
+          </div>
         </footer>
       </main>
     </div>
