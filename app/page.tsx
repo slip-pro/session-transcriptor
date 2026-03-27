@@ -76,7 +76,7 @@ export default function Home() {
       });
 
       if (!res.ok) {
-        let message = t.defaultError;
+        let message: string = t.defaultError;
         try {
           const data = (await res.json()) as { error?: string };
           if (data?.error) message = data.error;
