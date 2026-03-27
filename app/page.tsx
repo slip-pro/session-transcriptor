@@ -18,7 +18,7 @@ const translations = {
     noFile: "Файл не выбран",
     submit: "Сделать транскрипт",
     submitting: "Обрабатываю…",
-    hint: "Распознавание через Deepgram, скачивание Word.",
+    hint: "",
     footer:
       "Аудио не сохраняется — файл обрабатывается в памяти и удаляется сразу после расшифровки. Распознавание речи выполняется через Deepgram.",
     donateText: "Если вам понравился сервис, вы можете поддержать автора: ",
@@ -42,7 +42,7 @@ const translations = {
     noFile: "No file selected",
     submit: "Create transcript",
     submitting: "Processing…",
-    hint: "Transcription via Deepgram, download as Word.",
+    hint: "",
     footer:
       "Audio is not stored — your file is processed in memory and discarded immediately after transcription. Speech recognition is powered by Deepgram.",
     donateText: "If you found this tool helpful, you can support the creator: ",
