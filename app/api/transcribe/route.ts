@@ -415,7 +415,7 @@ export async function POST(req: Request) {
 
   const docxBuffer = await Packer.toBuffer(doc);
 
-  return new NextResponse(docxBuffer, {
+  return new NextResponse(new Uint8Array(docxBuffer), {
     headers: {
       "Content-Type":
         "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
