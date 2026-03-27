@@ -2,7 +2,51 @@
 
 import { useMemo, useState } from "react";
 
+const translations = {
+  ru: {
+    badge: "Транскрипт коуч‑сессии за пару минут",
+    heading: "Загрузи аудио — получишь транскрипт в формате ICF",
+    description:
+      "Мини‑интерфейс для коучей и психологов: отправляешь запись, движок делает расшифровку, а ты скачиваешь готовый файл Word.",
+    coach: "Коуч",
+    coachPlaceholder: "Напр. Александра",
+    client: "Клиент",
+    clientPlaceholder: "Напр. Ирина",
+    date: "Дата",
+    audioLabel: "Аудио‑файл (mp3, m4a, wav)",
+    submit: "Сделать транскрипт (ICF)",
+    submitting: "Обрабатываю…",
+    hint: "Распознавание через Deepgram, скачивание Word.",
+    footer:
+      "Конфиденциальность и хранение данных добавим позже — сейчас делаем первую рабочую версию интерфейса.",
+    unexpectedError: "Неожиданная ошибка",
+    defaultError: "Не получилось обработать файл.",
+  },
+  en: {
+    badge: "Coaching session transcript in minutes",
+    heading: "Upload audio — get an ICF-format transcript",
+    description:
+      "A simple tool for coaches and therapists: upload a recording, the engine transcribes it, and you download a ready Word file.",
+    coach: "Coach",
+    coachPlaceholder: "E.g. Alexandra",
+    client: "Client",
+    clientPlaceholder: "E.g. Irina",
+    date: "Date",
+    audioLabel: "Audio file (mp3, m4a, wav)",
+    submit: "Create transcript (ICF)",
+    submitting: "Processing…",
+    hint: "Transcription via Deepgram, download as Word.",
+    footer:
+      "Privacy and data retention features coming soon — this is the first working version.",
+    unexpectedError: "Unexpected error",
+    defaultError: "Could not process the file.",
+  },
+} as const;
+
+type Lang = keyof typeof translations;
+
 export default function Home() {
+  const [lang, setLang] = useState<Lang>("ru");
   const [file, setFile] = useState<File | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -10,6 +54,7 @@ export default function Home() {
   const [clientName, setClientName] = useState("");
   const [sessionDate, setSessionDate] = useState("");
 
+  const t = translations[lang];
   const canSubmit = useMemo(() => !!file && !isLoading, [file, isLoading]);
 
   async function onTranscribe() {
@@ -31,7 +76,7 @@ export default function Home() {
       });
 
       if (!res.ok) {
-        let message = "Не получилось обработать файл.";
+        let message = t.defaultError;
         try {
           const data = (await res.json()) as { error?: string };
           if (data?.error) message = data.error;
@@ -53,7 +98,7 @@ export default function Home() {
 
       URL.revokeObjectURL(url);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Неожиданная ошибка");
+      setError(e instanceof Error ? e.message : t.unexpectedError);
     } finally {
       setIsLoading(false);
     }
@@ -63,16 +108,24 @@ export default function Home() {
     <div className="min-h-dvh bg-gradient-to-b from-rose-50 via-amber-50 to-sky-50 text-zinc-900">
       <main className="mx-auto flex w-full max-w-3xl flex-col gap-10 px-6 py-16 sm:py-20">
         <header className="flex flex-col gap-4">
-          <div className="inline-flex w-fit items-center gap-2 rounded-full bg-white/70 px-3 py-1 text-sm text-zinc-700 ring-1 ring-zinc-900/5 backdrop-blur">
-            <span className="h-2 w-2 rounded-full bg-rose-400" />
-            Транскрипт коуч‑сессии за пару минут
+          <div className="flex items-center justify-between">
+            <div className="inline-flex w-fit items-center gap-2 rounded-full bg-white/70 px-3 py-1 text-sm text-zinc-700 ring-1 ring-zinc-900/5 backdrop-blur">
+              <span className="h-2 w-2 rounded-full bg-rose-400" />
+              {t.badge}
+            </div>
+            <button
+              type="button"
+              onClick={() => setLang(lang === "ru" ? "en" : "ru")}
+              className="rounded-full bg-white/70 px-3 py-1 text-sm font-medium text-zinc-700 ring-1 ring-zinc-900/5 backdrop-blur transition hover:bg-white"
+            >
+              {lang === "ru" ? "EN" : "RU"}
+            </button>
           </div>
           <h1 className="text-3xl font-semibold leading-tight tracking-tight sm:text-4xl">
-            Загрузи аудио — получишь транскрипт в формате ICF
+            {t.heading}
           </h1>
           <p className="max-w-2xl text-base leading-7 text-zinc-700">
-            Мини‑интерфейс для коучей и психологов: отправляешь запись, движок
-            делает расшифровку, а ты скачиваешь готовый файл Word.
+            {t.description}
           </p>
         </header>
 
@@ -80,25 +133,25 @@ export default function Home() {
           <form className="flex flex-col gap-4">
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
               <label className="flex flex-col gap-2">
-                <span className="text-sm font-medium text-zinc-800">Коуч</span>
+                <span className="text-sm font-medium text-zinc-800">{t.coach}</span>
                 <input
                   value={coachName}
                   onChange={(e) => setCoachName(e.target.value)}
-                  placeholder="Напр. Александра"
+                  placeholder={t.coachPlaceholder}
                   className="h-11 rounded-xl bg-white px-4 text-sm text-zinc-800 ring-1 ring-zinc-900/10 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-rose-300"
                 />
               </label>
               <label className="flex flex-col gap-2">
-                <span className="text-sm font-medium text-zinc-800">Клиент</span>
+                <span className="text-sm font-medium text-zinc-800">{t.client}</span>
                 <input
                   value={clientName}
                   onChange={(e) => setClientName(e.target.value)}
-                  placeholder="Напр. Ирина"
+                  placeholder={t.clientPlaceholder}
                   className="h-11 rounded-xl bg-white px-4 text-sm text-zinc-800 ring-1 ring-zinc-900/10 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-rose-300"
                 />
               </label>
               <label className="flex flex-col gap-2">
-                <span className="text-sm font-medium text-zinc-800">Дата</span>
+                <span className="text-sm font-medium text-zinc-800">{t.date}</span>
                 <input
                   value={sessionDate}
                   onChange={(e) => setSessionDate(e.target.value)}
@@ -110,7 +163,7 @@ export default function Home() {
 
             <label className="flex flex-col gap-2">
               <span className="text-sm font-medium text-zinc-800">
-                Аудио‑файл (mp3, m4a, wav)
+                {t.audioLabel}
               </span>
               <input
                 type="file"
@@ -133,20 +186,15 @@ export default function Home() {
                 disabled={!canSubmit}
                 className="inline-flex h-11 items-center justify-center rounded-xl bg-zinc-900 px-5 text-sm font-medium text-white shadow-sm transition enabled:hover:bg-zinc-800 focus:outline-none focus:ring-2 focus:ring-rose-300 disabled:cursor-not-allowed disabled:opacity-50"
               >
-                {isLoading ? "Обрабатываю…" : "Сделать транскрипт (ICF)"}
+                {isLoading ? t.submitting : t.submit}
               </button>
-              <p className="text-sm text-zinc-600">
-                Сейчас делаем распознавание через Deepgram и скачиваем Word.
-              </p>
+              <p className="text-sm text-zinc-600">{t.hint}</p>
             </div>
           </form>
         </section>
 
         <footer className="text-sm text-zinc-600">
-          <p>
-            Конфиденциальность и хранение данных добавим позже — сейчас делаем
-            первую рабочую версию интерфейса.
-          </p>
+          <p>{t.footer}</p>
         </footer>
       </main>
     </div>
