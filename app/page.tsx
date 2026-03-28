@@ -246,7 +246,7 @@ export default function Home() {
               href="https://www.tinkoff.ru/rm/r_GWWuGKdimU.gmQAaLNhPZ/p6XLD28818"
               target="_blank"
               rel="noopener noreferrer"
-              className="underline underline-offset-2 hover:text-zinc-900"
+              className="font-semibold underline underline-offset-2 hover:text-zinc-900"
             >
               {t.donateRub}
             </a>
@@ -255,7 +255,7 @@ export default function Home() {
               href="https://revolut.me/aleksaue7s/pocket/IJ2bd9k6na"
               target="_blank"
               rel="noopener noreferrer"
-              className="underline underline-offset-2 hover:text-zinc-900"
+              className="font-semibold underline underline-offset-2 hover:text-zinc-900"
             >
               {t.donateEur}
             </a>
