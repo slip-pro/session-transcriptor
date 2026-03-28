@@ -13,8 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "ICF Транскрибатор — демо",
-  description: "Мини‑интерфейс: загрузка аудио → транскрипт коуч‑сессии (ICF) в Word.",
+  title: "Coaching Session Transcriptor",
+  description: "Загрузи аудио — получишь транскрипт коуч‑сессии в формате ICF в Word.",
 };
 
 export default function RootLayout({
