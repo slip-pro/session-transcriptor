@@ -18,6 +18,7 @@ import {
 import { DeepgramClient } from "@deepgram/sdk";
 
 export const runtime = "nodejs";
+export const maxDuration = 300; // до 5 минут на Vercel Pro
 
 function toMmSs(totalSeconds: number) {
   const mins = Math.floor(totalSeconds / 60);
@@ -247,8 +248,6 @@ const docLabels = {
   ru: {
     coach: "Коуч",
     client: "Клиент",
-    consentLabel: "Разрешение на запись и использование: ",
-    consentValue: "получено, зафиксировано голосом в записи.",
     dateLabel: "Дата сессии: ",
     colRole: "Роль",
     colContent: "",
@@ -260,8 +259,6 @@ const docLabels = {
   en: {
     coach: "Coach",
     client: "Client",
-    consentLabel: "Recording consent: ",
-    consentValue: "obtained, confirmed verbally on the recording.",
     dateLabel: "Session date: ",
     colRole: "Role",
     colContent: "",
@@ -301,18 +298,26 @@ export async function POST(req: Request) {
 
   const deepgram = new DeepgramClient({ apiKey });
 
+  const DEEPGRAM_TIMEOUT_MS = 4 * 60 * 1000; // 4 минуты
+
   let dgResult: unknown;
   try {
-    dgResult = await deepgram.listen.v1.media.transcribeUrl({
-      url: blobUrl,
-      model: "nova-3",
-      language: "multi",
-      smart_format: true,
-      punctuate: true,
-      diarize: true,
-      utterances: true,
-      filler_words: true,
-    });
+    const timeoutPromise = new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error("Transcription timed out. Try a shorter audio file.")), DEEPGRAM_TIMEOUT_MS),
+    );
+    dgResult = await Promise.race([
+      deepgram.listen.v1.media.transcribeUrl({
+        url: blobUrl,
+        model: "nova-3",
+        language: "multi",
+        smart_format: true,
+        punctuate: true,
+        diarize: true,
+        utterances: true,
+        filler_words: true,
+      }),
+      timeoutPromise,
+    ]);
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Unknown Deepgram error";
     await del(blobUrl).catch(() => {});
@@ -348,22 +353,6 @@ export async function POST(req: Request) {
       children: [
         new TextRun({ text: `${L.client}: `, bold: true, font: "Calibri", size: 24 }),
         new TextRun({ text: clientName, font: "Calibri", size: 24 }),
-      ],
-    }),
-    new Paragraph({
-      spacing: { after: 100 },
-      children: [
-        new TextRun({
-          text: L.consentLabel,
-          bold: true,
-          font: "Calibri",
-          size: 24,
-        }),
-        new TextRun({
-          text: L.consentValue,
-          font: "Calibri",
-          size: 24,
-        }),
       ],
     }),
     new Paragraph({
