@@ -1,5 +1,6 @@
 "use client";
 
+import { upload } from "@vercel/blob/client";
 import { useEffect, useMemo, useState } from "react";
 
 const pageTitles = {
@@ -8,6 +9,21 @@ const pageTitles = {
 };
 
 const MAX_FILE_SIZE = 500 * 1024 * 1024; // 500 MB
+
+function toSafeUploadPath(filename: string) {
+  const trimmed = filename.trim();
+  const extMatch = trimmed.match(/\.([a-zA-Z0-9]+)$/);
+  const extension = extMatch?.[1]?.toLowerCase() ?? "bin";
+  const baseName = extMatch ? trimmed.slice(0, -extMatch[0].length) : trimmed;
+  const normalizedBase = baseName
+    .normalize("NFKD")
+    .replace(/[^\x20-\x7E]+/g, "-")
+    .replace(/[^a-zA-Z0-9._-]+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "");
+
+  return `uploads/${normalizedBase || "audio"}.${extension}`;
+}
 
 const translations = {
   ru: {
@@ -25,6 +41,7 @@ const translations = {
     noFile: "Файл не выбран",
     submit: "Сделать транскрипт",
     submitting: "Обрабатываю…",
+    uploadingToStorage: "Загружаю аудио…",
     hint: "",
     footer:
       "Аудио не сохраняется — файл обрабатывается в памяти и удаляется сразу после расшифровки. Распознавание речи выполняется через Deepgram.",
@@ -38,6 +55,10 @@ const translations = {
     unexpectedError: "Неожиданная ошибка",
     defaultError: "Не получилось обработать файл.",
     fileTooLarge: "Файл слишком большой. Максимальный размер — 500 МБ.",
+    networkError:
+      "Не удалось отправить файл на сервер. Если аудио большое, перезапусти приложение после обновления и попробуй снова.",
+    storageError:
+      "Не удалось загрузить аудио во внешнее хранилище. Проверь настройки Vercel Blob.",
   },
   en: {
     badge: "Coaching session transcript in minutes",
@@ -54,6 +75,7 @@ const translations = {
     noFile: "No file selected",
     submit: "Create transcript",
     submitting: "Processing…",
+    uploadingToStorage: "Uploading audio…",
     hint: "",
     footer:
       "Audio is not stored — your file is processed in memory and discarded immediately after transcription. Speech recognition is powered by Deepgram.",
@@ -67,6 +89,10 @@ const translations = {
     unexpectedError: "Unexpected error",
     defaultError: "Could not process the file.",
     fileTooLarge: "File is too large. Maximum size is 500 MB.",
+    networkError:
+      "Could not send the file to the server. If the audio is large, restart the app after the update and try again.",
+    storageError:
+      "Could not upload the audio to external storage. Check the Vercel Blob setup.",
   },
 } as const;
 
@@ -101,36 +127,43 @@ export default function Home() {
       return;
     }
 
-    setStatus("uploading");
-    setError(null);
-
-    let blobUrl: string;
-    try {
-      const uploadRes = await fetch("/api/upload", {
-        method: "POST",
-        body: file,
-        headers: {
-          "x-filename": file.name,
-          "x-content-type": file.type || "audio/mpeg",
-        },
-      });
-      if (!uploadRes.ok) {
-        const data = await uploadRes.json().catch(() => ({})) as { error?: string };
-        throw new Error(data.error ?? t.defaultError);
-      }
-      const data = await uploadRes.json() as { url: string };
-      blobUrl = data.url;
-    } catch (e) {
-      setError(e instanceof Error ? e.message : t.defaultError);
-      setStatus("idle");
-      return;
-    }
-
     setStatus("transcribing");
+    setError(null);
 
     try {
       const formData = new FormData();
-      formData.append("blobUrl", blobUrl);
+      let blobUrl = "";
+
+      try {
+        setStatus("uploading");
+        const uploaded = await upload(toSafeUploadPath(file.name), file, {
+          access: "public",
+          handleUploadUrl: "/api/upload",
+          contentType: file.type || "application/octet-stream",
+          multipart: file.size > 20 * 1024 * 1024,
+        });
+        blobUrl = uploaded.url;
+      } catch (uploadError) {
+        // Keep local/dev usability by falling back to direct upload if Blob is unavailable.
+        if (uploadError instanceof Error) {
+          const message = uploadError.message.toLowerCase();
+          const shouldFallback =
+            message.includes("token") ||
+            message.includes("blob") ||
+            message.includes("client token");
+
+          if (!shouldFallback) {
+            throw new Error(t.storageError);
+          }
+        }
+      }
+
+      setStatus("transcribing");
+      if (blobUrl) {
+        formData.append("blobUrl", blobUrl);
+      } else {
+        formData.append("audioFile", file);
+      }
       formData.append("coachName", coachName);
       formData.append("clientName", clientName);
       formData.append("sessionDate", sessionDate);
@@ -164,7 +197,11 @@ export default function Home() {
 
       URL.revokeObjectURL(url);
     } catch (e) {
-      setError(e instanceof Error ? e.message : t.unexpectedError);
+      if (e instanceof TypeError) {
+        setError(t.networkError);
+      } else {
+        setError(e instanceof Error ? e.message : t.unexpectedError);
+      }
     } finally {
       setStatus("idle");
     }
@@ -261,7 +298,7 @@ export default function Home() {
             >
               <span className="relative inline-flex items-center justify-center">
                 <span className={status !== "idle" ? "invisible" : ""}>{t.submit}</span>
-                <span className={`absolute inset-0 flex items-center justify-center${status === "uploading" ? "" : " invisible"}`}>{t.uploading}</span>
+                <span className={`absolute inset-0 flex items-center justify-center${status === "uploading" ? "" : " invisible"}`}>{t.uploadingToStorage}</span>
                 <span className={`absolute inset-0 flex items-center justify-center${status === "transcribing" ? "" : " invisible"}`}>{t.submitting}</span>
               </span>
             </button>

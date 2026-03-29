@@ -1,4 +1,3 @@
-import { del } from "@vercel/blob";
 import { NextResponse } from "next/server";
 import {
   AlignmentType,
@@ -19,6 +18,23 @@ import { DeepgramClient } from "@deepgram/sdk";
 
 export const runtime = "nodejs";
 export const maxDuration = 300; // до 5 минут на Vercel Pro
+
+function toSafeAsciiFilename(filename: string, fallbackExtension = "audio") {
+  const trimmed = filename.trim();
+  const extMatch = trimmed.match(/\.([a-zA-Z0-9]+)$/);
+  const extension = extMatch?.[1]?.toLowerCase() ?? fallbackExtension;
+  const baseName = extMatch ? trimmed.slice(0, -extMatch[0].length) : trimmed;
+
+  const normalizedBase = baseName
+    .normalize("NFKD")
+    .replace(/[^\x20-\x7E]+/g, "-")
+    .replace(/[^a-zA-Z0-9._-]+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "");
+
+  const safeBase = normalizedBase || "audio";
+  return `${safeBase}.${extension}`;
+}
 
 function toMmSs(totalSeconds: number) {
   const mins = Math.floor(totalSeconds / 60);
@@ -274,6 +290,11 @@ type DocLang = keyof typeof docLabels;
 export async function POST(req: Request) {
   const formData = await req.formData();
   const blobUrl = String(formData.get("blobUrl") ?? "").trim();
+  const audioFileEntry = formData.get("audioFile");
+  const audioFile =
+    typeof File !== "undefined" && audioFileEntry instanceof File
+      ? audioFileEntry
+      : null;
   const coachName = String(formData.get("coachName") ?? "").trim() || "—";
   const clientName = String(formData.get("clientName") ?? "").trim() || "—";
   const sessionDate = String(formData.get("sessionDate") ?? "").trim() || "—";
@@ -281,7 +302,7 @@ export async function POST(req: Request) {
   const lang: DocLang = rawLang === "en" ? "en" : "ru";
   const L = docLabels[lang];
 
-  if (!blobUrl) {
+  if (!blobUrl && !audioFile) {
     return NextResponse.json(
       { error: "Нет файла. Загрузи аудио и попробуй ещё раз." },
       { status: 400 },
@@ -298,18 +319,38 @@ export async function POST(req: Request) {
 
   const deepgram = new DeepgramClient({ apiKey });
 
-  // Скачиваем файл с blob-хранилища сервером, чтобы не зависеть от публичного доступа к URL
-  let audioStream: ReadableStream;
-  try {
-    const audioRes = await fetch(blobUrl);
-    if (!audioRes.ok || !audioRes.body) {
-      await del(blobUrl).catch(() => {});
-      return NextResponse.json({ error: "Не удалось получить аудиофайл из хранилища." }, { status: 502 });
+  let uploadable:
+    | ReadableStream
+    | {
+        data: File;
+        filename: string;
+        contentType: string;
+        contentLength: number;
+      };
+  if (audioFile) {
+    uploadable = {
+      data: audioFile,
+      filename: toSafeAsciiFilename(audioFile.name, "m4a"),
+      contentType: audioFile.type || "application/octet-stream",
+      contentLength: audioFile.size,
+    };
+  } else {
+    // If a blob URL is provided, download it server-side first.
+    try {
+      const audioRes = await fetch(blobUrl);
+      if (!audioRes.ok || !audioRes.body) {
+        return NextResponse.json(
+          { error: "Не удалось получить аудиофайл из хранилища." },
+          { status: 502 },
+        );
+      }
+      uploadable = audioRes.body;
+    } catch {
+      return NextResponse.json(
+        { error: "Не удалось получить аудиофайл из хранилища." },
+        { status: 502 },
+      );
     }
-    audioStream = audioRes.body;
-  } catch {
-    await del(blobUrl).catch(() => {});
-    return NextResponse.json({ error: "Не удалось получить аудиофайл из хранилища." }, { status: 502 });
   }
 
   const DEEPGRAM_TIMEOUT_MS = 4 * 60 * 1000; // 4 минуты
@@ -320,7 +361,7 @@ export async function POST(req: Request) {
       setTimeout(() => reject(new Error("Transcription timed out. Try a shorter audio file.")), DEEPGRAM_TIMEOUT_MS),
     );
     dgResult = await Promise.race([
-      deepgram.listen.v1.media.transcribeFile(audioStream, {
+      deepgram.listen.v1.media.transcribeFile(uploadable, {
         model: "nova-3",
         language: "multi",
         smart_format: true,
@@ -333,12 +374,8 @@ export async function POST(req: Request) {
     ]);
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Unknown Deepgram error";
-    await del(blobUrl).catch(() => {});
     return NextResponse.json({ error: `Deepgram error: ${msg}` }, { status: 502 });
   }
-
-  // Удаляем файл из Blob сразу после расшифровки
-  await del(blobUrl).catch(() => {});
 
   const utterances = (
     (dgResult as { results?: { utterances?: unknown } }).results?.utterances ?? []
@@ -443,4 +480,3 @@ export async function POST(req: Request) {
     },
   });
 }
-
