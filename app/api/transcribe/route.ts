@@ -298,6 +298,20 @@ export async function POST(req: Request) {
 
   const deepgram = new DeepgramClient({ apiKey });
 
+  // Скачиваем файл с blob-хранилища сервером, чтобы не зависеть от публичного доступа к URL
+  let audioStream: ReadableStream;
+  try {
+    const audioRes = await fetch(blobUrl);
+    if (!audioRes.ok || !audioRes.body) {
+      await del(blobUrl).catch(() => {});
+      return NextResponse.json({ error: "Не удалось получить аудиофайл из хранилища." }, { status: 502 });
+    }
+    audioStream = audioRes.body;
+  } catch {
+    await del(blobUrl).catch(() => {});
+    return NextResponse.json({ error: "Не удалось получить аудиофайл из хранилища." }, { status: 502 });
+  }
+
   const DEEPGRAM_TIMEOUT_MS = 4 * 60 * 1000; // 4 минуты
 
   let dgResult: unknown;
@@ -306,8 +320,7 @@ export async function POST(req: Request) {
       setTimeout(() => reject(new Error("Transcription timed out. Try a shorter audio file.")), DEEPGRAM_TIMEOUT_MS),
     );
     dgResult = await Promise.race([
-      deepgram.listen.v1.media.transcribeUrl({
-        url: blobUrl,
+      deepgram.listen.v1.media.transcribeFile(audioStream, {
         model: "nova-3",
         language: "multi",
         smart_format: true,
