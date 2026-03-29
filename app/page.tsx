@@ -10,6 +10,8 @@ const pageTitles = {
 
 const MAX_FILE_SIZE = 500 * 1024 * 1024; // 500 MB
 
+type Status = "idle" | "uploading" | "transcribing" | "packaging";
+
 function toSafeUploadPath(filename: string) {
   const trimmed = filename.trim();
   const extMatch = trimmed.match(/\.([a-zA-Z0-9]+)$/);
@@ -42,6 +44,16 @@ const translations = {
     submit: "Сделать транскрипт",
     submitting: "Обрабатываю…",
     uploadingToStorage: "Загружаю аудио…",
+    packaging: "Готовлю Word-файл…",
+    stepUpload: "1. Загрузка файла",
+    stepTranscribe: "2. Распознавание речи",
+    stepPackaging: "3. Подготовка документа",
+    progressUpload:
+      "Файл загружается во внешнее хранилище. Это может занять до пары минут для длинных записей.",
+    progressTranscribe:
+      "Идёт распознавание речи в Deepgram. Самый долгий этап, особенно для длинных сессий.",
+    progressPackaging:
+      "Собираю Word-документ и подготавливаю скачивание.",
     hint: "",
     footer:
       "Аудио не сохраняется — файл обрабатывается в памяти и удаляется сразу после расшифровки. Распознавание речи выполняется через Deepgram.",
@@ -76,6 +88,16 @@ const translations = {
     submit: "Create transcript",
     submitting: "Processing…",
     uploadingToStorage: "Uploading audio…",
+    packaging: "Preparing Word file…",
+    stepUpload: "1. Uploading file",
+    stepTranscribe: "2. Speech recognition",
+    stepPackaging: "3. Preparing document",
+    progressUpload:
+      "The file is being uploaded to external storage. Large recordings can take a couple of minutes.",
+    progressTranscribe:
+      "Speech is being transcribed by Deepgram. This is usually the longest stage.",
+    progressPackaging:
+      "Generating the Word document and preparing the download.",
     hint: "",
     footer:
       "Audio is not stored — your file is processed in memory and discarded immediately after transcription. Speech recognition is powered by Deepgram.",
@@ -106,7 +128,7 @@ export default function Home() {
     return "ru";
   });
   const [file, setFile] = useState<File | null>(null);
-  const [status, setStatus] = useState<"idle" | "uploading" | "transcribing">("idle");
+  const [status, setStatus] = useState<Status>("idle");
   const [error, setError] = useState<string | null>(null);
   const [coachName, setCoachName] = useState("");
   const [clientName, setClientName] = useState("");
@@ -114,6 +136,16 @@ export default function Home() {
 
   const t = translations[lang];
   const canSubmit = useMemo(() => !!file && status === "idle", [file, status]);
+  const activeStep =
+    status === "uploading" ? 1 : status === "transcribing" ? 2 : status === "packaging" ? 3 : 0;
+  const progressMessage =
+    status === "uploading"
+      ? t.progressUpload
+      : status === "transcribing"
+        ? t.progressTranscribe
+        : status === "packaging"
+          ? t.progressPackaging
+          : null;
 
   useEffect(() => {
     document.title = pageTitles[lang];
@@ -184,6 +216,8 @@ export default function Home() {
         }
         throw new Error(message);
       }
+
+      setStatus("packaging");
 
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
@@ -300,8 +334,35 @@ export default function Home() {
                 <span className={status !== "idle" ? "invisible" : ""}>{t.submit}</span>
                 <span className={`absolute inset-0 flex items-center justify-center${status === "uploading" ? "" : " invisible"}`}>{t.uploadingToStorage}</span>
                 <span className={`absolute inset-0 flex items-center justify-center${status === "transcribing" ? "" : " invisible"}`}>{t.submitting}</span>
+                <span className={`absolute inset-0 flex items-center justify-center${status === "packaging" ? "" : " invisible"}`}>{t.packaging}</span>
               </span>
             </button>
+
+            {status !== "idle" ? (
+              <div className="rounded-xl bg-amber-50/80 px-4 py-4 ring-1 ring-amber-200">
+                <div className="flex items-center justify-between gap-3 text-xs font-medium text-amber-900">
+                  <span className={activeStep >= 1 ? "text-amber-950" : "text-amber-500"}>
+                    {t.stepUpload}
+                  </span>
+                  <span className={activeStep >= 2 ? "text-amber-950" : "text-amber-500"}>
+                    {t.stepTranscribe}
+                  </span>
+                  <span className={activeStep >= 3 ? "text-amber-950" : "text-amber-500"}>
+                    {t.stepPackaging}
+                  </span>
+                </div>
+                <div className="mt-3 h-2 overflow-hidden rounded-full bg-white/80 ring-1 ring-amber-100">
+                  <div
+                    className={`h-full rounded-full bg-gradient-to-r from-rose-400 via-amber-400 to-emerald-400 transition-all duration-500 ${
+                      activeStep === 1 ? "w-1/3" : activeStep === 2 ? "w-2/3" : "w-full"
+                    }`}
+                  />
+                </div>
+                <p className="mt-3 text-sm leading-6 text-amber-950">
+                  {progressMessage}
+                </p>
+              </div>
+            ) : null}
           </form>
         </section>
 
