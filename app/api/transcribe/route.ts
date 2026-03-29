@@ -303,18 +303,16 @@ export async function POST(req: Request) {
 
   let dgResult: unknown;
   try {
-    dgResult = await deepgram.listen.v1.media.transcribeUrl(
-      { url: blobUrl },
-      {
-        model: "nova-3",
-        language: "multi",
-        smart_format: true,
-        punctuate: true,
-        diarize: true,
-        utterances: true,
-        filler_words: true,
-      },
-    );
+    dgResult = await deepgram.listen.v1.media.transcribeUrl({
+      url: blobUrl,
+      model: "nova-3",
+      language: "multi",
+      smart_format: true,
+      punctuate: true,
+      diarize: true,
+      utterances: true,
+      filler_words: true,
+    });
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Unknown Deepgram error";
     await del(blobUrl).catch(() => {});
