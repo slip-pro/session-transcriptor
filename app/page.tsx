@@ -1,12 +1,13 @@
 "use client";
 
-import { upload } from "@vercel/blob/client";
 import { useEffect, useMemo, useState } from "react";
 
 const pageTitles = {
   ru: "Coaching Session Transcriptor",
   en: "Coaching Session Transcriptor",
 };
+
+const MAX_FILE_SIZE = 500 * 1024 * 1024; // 500 MB
 
 const translations = {
   ru: {
@@ -36,6 +37,7 @@ const translations = {
     uploading: "Загружаю файл…",
     unexpectedError: "Неожиданная ошибка",
     defaultError: "Не получилось обработать файл.",
+    fileTooLarge: "Файл слишком большой. Максимальный размер — 500 МБ.",
   },
   en: {
     badge: "Coaching session transcript in minutes",
@@ -64,6 +66,7 @@ const translations = {
     uploading: "Uploading file…",
     unexpectedError: "Unexpected error",
     defaultError: "Could not process the file.",
+    fileTooLarge: "File is too large. Maximum size is 500 MB.",
   },
 } as const;
 
@@ -77,41 +80,53 @@ export default function Home() {
     return "ru";
   });
   const [file, setFile] = useState<File | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [isUploading, setIsUploading] = useState(false);
+  const [status, setStatus] = useState<"idle" | "uploading" | "transcribing">("idle");
   const [error, setError] = useState<string | null>(null);
   const [coachName, setCoachName] = useState("");
   const [clientName, setClientName] = useState("");
   const [sessionDate, setSessionDate] = useState("");
 
   const t = translations[lang];
-  const canSubmit = useMemo(() => !!file && !isLoading && !isUploading, [file, isLoading, isUploading]);
+  const canSubmit = useMemo(() => !!file && status === "idle", [file, status]);
 
   useEffect(() => {
     document.title = pageTitles[lang];
   }, [lang]);
 
   async function onTranscribe() {
-    if (!file || isLoading) return;
+    if (!file || status !== "idle") return;
 
-    setIsLoading(true);
-    setIsUploading(true);
+    if (file.size > MAX_FILE_SIZE) {
+      setError(t.fileTooLarge);
+      return;
+    }
+
+    setStatus("uploading");
     setError(null);
 
     let blobUrl: string;
     try {
-      const blob = await upload(file.name, file, {
-        access: "public",
-        handleUploadUrl: "/api/upload",
+      const uploadRes = await fetch("/api/upload", {
+        method: "POST",
+        body: file,
+        headers: {
+          "x-filename": file.name,
+          "x-content-type": file.type || "audio/mpeg",
+        },
       });
-      blobUrl = blob.url;
-    } catch {
-      setError(t.defaultError);
-      setIsLoading(false);
-      setIsUploading(false);
+      if (!uploadRes.ok) {
+        const data = await uploadRes.json().catch(() => ({})) as { error?: string };
+        throw new Error(data.error ?? t.defaultError);
+      }
+      const data = await uploadRes.json() as { url: string };
+      blobUrl = data.url;
+    } catch (e) {
+      setError(e instanceof Error ? e.message : t.defaultError);
+      setStatus("idle");
       return;
     }
-    setIsUploading(false);
+
+    setStatus("transcribing");
 
     try {
       const formData = new FormData();
@@ -151,7 +166,7 @@ export default function Home() {
     } catch (e) {
       setError(e instanceof Error ? e.message : t.unexpectedError);
     } finally {
-      setIsLoading(false);
+      setStatus("idle");
     }
   }
 
@@ -245,9 +260,9 @@ export default function Home() {
               className="inline-flex h-11 w-full items-center justify-center rounded-xl bg-zinc-900 px-5 text-sm font-medium text-white shadow-sm transition enabled:hover:bg-zinc-800 focus:outline-none focus:ring-2 focus:ring-rose-300 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
             >
               <span className="relative inline-flex items-center justify-center">
-                <span className={isLoading || isUploading ? "invisible" : ""}>{t.submit}</span>
-                <span className={`absolute inset-0 flex items-center justify-center${isUploading ? "" : " invisible"}`}>{t.uploading}</span>
-                <span className={`absolute inset-0 flex items-center justify-center${isLoading && !isUploading ? "" : " invisible"}`}>{t.submitting}</span>
+                <span className={status !== "idle" ? "invisible" : ""}>{t.submit}</span>
+                <span className={`absolute inset-0 flex items-center justify-center${status === "uploading" ? "" : " invisible"}`}>{t.uploading}</span>
+                <span className={`absolute inset-0 flex items-center justify-center${status === "transcribing" ? "" : " invisible"}`}>{t.submitting}</span>
               </span>
             </button>
           </form>
