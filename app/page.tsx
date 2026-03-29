@@ -1,5 +1,6 @@
 "use client";
 
+import { upload } from "@vercel/blob/client";
 import { useEffect, useMemo, useState } from "react";
 
 const pageTitles = {
@@ -32,6 +33,7 @@ const translations = {
     donateText: "Если вам понравился сервис, вы можете поддержать автора: ",
     donateRub: "поддержать в рублях",
     donateEur: "поддержать в евро",
+    uploading: "Загружаю файл…",
     unexpectedError: "Неожиданная ошибка",
     defaultError: "Не получилось обработать файл.",
   },
@@ -59,6 +61,7 @@ const translations = {
     donateText: "If you found this tool helpful, you can support the creator: ",
     donateRub: "support in RUB",
     donateEur: "support in EUR",
+    uploading: "Uploading file…",
     unexpectedError: "Unexpected error",
     defaultError: "Could not process the file.",
   },
@@ -75,13 +78,14 @@ export default function Home() {
   });
   const [file, setFile] = useState<File | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [coachName, setCoachName] = useState("");
   const [clientName, setClientName] = useState("");
   const [sessionDate, setSessionDate] = useState("");
 
   const t = translations[lang];
-  const canSubmit = useMemo(() => !!file && !isLoading, [file, isLoading]);
+  const canSubmit = useMemo(() => !!file && !isLoading && !isUploading, [file, isLoading, isUploading]);
 
   useEffect(() => {
     document.title = pageTitles[lang];
@@ -91,11 +95,27 @@ export default function Home() {
     if (!file || isLoading) return;
 
     setIsLoading(true);
+    setIsUploading(true);
     setError(null);
+
+    let blobUrl: string;
+    try {
+      const blob = await upload(file.name, file, {
+        access: "public",
+        handleUploadUrl: "/api/upload",
+      });
+      blobUrl = blob.url;
+    } catch {
+      setError(t.defaultError);
+      setIsLoading(false);
+      setIsUploading(false);
+      return;
+    }
+    setIsUploading(false);
 
     try {
       const formData = new FormData();
-      formData.append("file", file);
+      formData.append("blobUrl", blobUrl);
       formData.append("coachName", coachName);
       formData.append("clientName", clientName);
       formData.append("sessionDate", sessionDate);
@@ -225,8 +245,9 @@ export default function Home() {
               className="inline-flex h-11 w-full items-center justify-center rounded-xl bg-zinc-900 px-5 text-sm font-medium text-white shadow-sm transition enabled:hover:bg-zinc-800 focus:outline-none focus:ring-2 focus:ring-rose-300 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
             >
               <span className="relative inline-flex items-center justify-center">
-                <span className={isLoading ? "invisible" : ""}>{t.submit}</span>
-                <span className={`absolute inset-0 flex items-center justify-center${isLoading ? "" : " invisible"}`}>{t.submitting}</span>
+                <span className={isLoading || isUploading ? "invisible" : ""}>{t.submit}</span>
+                <span className={`absolute inset-0 flex items-center justify-center${isUploading ? "" : " invisible"}`}>{t.uploading}</span>
+                <span className={`absolute inset-0 flex items-center justify-center${isLoading && !isUploading ? "" : " invisible"}`}>{t.submitting}</span>
               </span>
             </button>
           </form>

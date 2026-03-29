@@ -1,3 +1,4 @@
+import { del } from "@vercel/blob";
 import { NextResponse } from "next/server";
 import {
   AlignmentType,
@@ -275,7 +276,7 @@ type DocLang = keyof typeof docLabels;
 
 export async function POST(req: Request) {
   const formData = await req.formData();
-  const file = formData.get("file");
+  const blobUrl = String(formData.get("blobUrl") ?? "").trim();
   const coachName = String(formData.get("coachName") ?? "").trim() || "—";
   const clientName = String(formData.get("clientName") ?? "").trim() || "—";
   const sessionDate = String(formData.get("sessionDate") ?? "").trim() || "—";
@@ -283,7 +284,7 @@ export async function POST(req: Request) {
   const lang: DocLang = rawLang === "en" ? "en" : "ru";
   const L = docLabels[lang];
 
-  if (!(file instanceof File)) {
+  if (!blobUrl) {
     return NextResponse.json(
       { error: "Нет файла. Загрузи аудио и попробуй ещё раз." },
       { status: 400 },
@@ -293,36 +294,17 @@ export async function POST(req: Request) {
   const apiKey = process.env["DEEPGRAM_API_KEY"];
   if (!apiKey) {
     return NextResponse.json(
-      {
-        error:
-          "На сервере не задан DEEPGRAM_API_KEY. Добавим его в .env.local и перезапустим dev-сервер.",
-      },
+      { error: "На сервере не задан DEEPGRAM_API_KEY." },
       { status: 500 },
     );
   }
-
-  const buffer = Buffer.from(await file.arrayBuffer());
-
-  const ext = file.name.split(".").pop()?.toLowerCase() ?? "";
-  const safeExt = ext && /^[a-z0-9]+$/.test(ext) ? ext : "mp3";
-  const safeFilename = `audio.${safeExt}`;
-  const mimeMap: Record<string, string> = {
-    mp3: "audio/mpeg",
-    wav: "audio/wav",
-    m4a: "audio/mp4",
-    ogg: "audio/ogg",
-    flac: "audio/flac",
-    webm: "audio/webm",
-    mp4: "audio/mp4",
-  };
-  const mimeType = mimeMap[ext] ?? file.type ?? "audio/mpeg";
 
   const deepgram = new DeepgramClient({ apiKey });
 
   let dgResult: unknown;
   try {
-    dgResult = await deepgram.listen.v1.media.transcribeFile(
-      { data: buffer, filename: safeFilename, contentType: mimeType },
+    dgResult = await deepgram.listen.v1.media.transcribeUrl(
+      { url: blobUrl },
       {
         model: "nova-3",
         language: "multi",
@@ -335,8 +317,12 @@ export async function POST(req: Request) {
     );
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Unknown Deepgram error";
+    await del(blobUrl).catch(() => {});
     return NextResponse.json({ error: `Deepgram error: ${msg}` }, { status: 502 });
   }
+
+  // Удаляем файл из Blob сразу после расшифровки
+  await del(blobUrl).catch(() => {});
 
   const utterances = (
     (dgResult as { results?: { utterances?: unknown } }).results?.utterances ?? []
