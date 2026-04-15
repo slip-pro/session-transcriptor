@@ -209,8 +209,14 @@ export default function Home() {
       if (!res.ok) {
         let message: string = t.defaultError;
         try {
-          const data = (await res.json()) as { error?: string };
-          if (data?.error) message = data.error;
+          const contentType = res.headers.get("content-type") ?? "";
+          if (contentType.includes("application/json")) {
+            const data = (await res.json()) as { error?: string };
+            if (data?.error) message = data.error;
+          } else {
+            const text = (await res.text()).trim();
+            if (text) message = text;
+          }
         } catch {
           // ignore
         }

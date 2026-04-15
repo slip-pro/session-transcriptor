@@ -19,6 +19,13 @@ import { DeepgramClient } from "@deepgram/sdk";
 export const runtime = "nodejs";
 export const maxDuration = 300; // до 5 минут на Vercel Pro
 
+function sanitizeDocText(value: string) {
+  return value
+    .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 function toSafeAsciiFilename(filename: string, fallbackExtension = "audio") {
   const trimmed = filename.trim();
   const extMatch = trimmed.match(/\.([a-zA-Z0-9]+)$/);
@@ -288,195 +295,219 @@ const docLabels = {
 type DocLang = keyof typeof docLabels;
 
 export async function POST(req: Request) {
-  const formData = await req.formData();
-  const blobUrl = String(formData.get("blobUrl") ?? "").trim();
-  const audioFileEntry = formData.get("audioFile");
-  const audioFile =
-    typeof File !== "undefined" && audioFileEntry instanceof File
-      ? audioFileEntry
-      : null;
-  const coachName = String(formData.get("coachName") ?? "").trim() || "—";
-  const clientName = String(formData.get("clientName") ?? "").trim() || "—";
-  const sessionDate = String(formData.get("sessionDate") ?? "").trim() || "—";
-  const rawLang = String(formData.get("lang") ?? "ru");
-  const lang: DocLang = rawLang === "en" ? "en" : "ru";
-  const L = docLabels[lang];
+  try {
+    const formData = await req.formData();
+    const blobUrl = String(formData.get("blobUrl") ?? "").trim();
+    const audioFileEntry = formData.get("audioFile");
+    const audioFile =
+      typeof File !== "undefined" && audioFileEntry instanceof File
+        ? audioFileEntry
+        : null;
+    const coachName =
+      sanitizeDocText(String(formData.get("coachName") ?? "").trim()) || "—";
+    const clientName =
+      sanitizeDocText(String(formData.get("clientName") ?? "").trim()) || "—";
+    const sessionDate =
+      sanitizeDocText(String(formData.get("sessionDate") ?? "").trim()) || "—";
+    const rawLang = String(formData.get("lang") ?? "ru");
+    const lang: DocLang = rawLang === "en" ? "en" : "ru";
+    const L = docLabels[lang];
 
-  if (!blobUrl && !audioFile) {
-    return NextResponse.json(
-      { error: "Нет файла. Загрузи аудио и попробуй ещё раз." },
-      { status: 400 },
-    );
-  }
+    if (!blobUrl && !audioFile) {
+      return NextResponse.json(
+        { error: "Нет файла. Загрузи аудио и попробуй ещё раз." },
+        { status: 400 },
+      );
+    }
 
-  const apiKey = process.env["DEEPGRAM_API_KEY"];
-  if (!apiKey) {
-    return NextResponse.json(
-      { error: "На сервере не задан DEEPGRAM_API_KEY." },
-      { status: 500 },
-    );
-  }
+    const apiKey = process.env["DEEPGRAM_API_KEY"];
+    if (!apiKey) {
+      return NextResponse.json(
+        { error: "На сервере не задан DEEPGRAM_API_KEY." },
+        { status: 500 },
+      );
+    }
 
-  const deepgram = new DeepgramClient({ apiKey });
+    const deepgram = new DeepgramClient({ apiKey });
 
-  let uploadable:
-    | ReadableStream
-    | {
-        data: File;
-        filename: string;
-        contentType: string;
-        contentLength: number;
+    let uploadable:
+      | ReadableStream
+      | {
+          data: File;
+          filename: string;
+          contentType: string;
+          contentLength: number;
+        };
+    if (audioFile) {
+      uploadable = {
+        data: audioFile,
+        filename: toSafeAsciiFilename(audioFile.name, "m4a"),
+        contentType: audioFile.type || "application/octet-stream",
+        contentLength: audioFile.size,
       };
-  if (audioFile) {
-    uploadable = {
-      data: audioFile,
-      filename: toSafeAsciiFilename(audioFile.name, "m4a"),
-      contentType: audioFile.type || "application/octet-stream",
-      contentLength: audioFile.size,
-    };
-  } else {
-    // If a blob URL is provided, download it server-side first.
-    try {
-      const audioRes = await fetch(blobUrl);
-      if (!audioRes.ok || !audioRes.body) {
+    } else {
+      try {
+        const audioRes = await fetch(blobUrl);
+        if (!audioRes.ok || !audioRes.body) {
+          return NextResponse.json(
+            { error: "Не удалось получить аудиофайл из хранилища." },
+            { status: 502 },
+          );
+        }
+        uploadable = audioRes.body;
+      } catch {
         return NextResponse.json(
           { error: "Не удалось получить аудиофайл из хранилища." },
           { status: 502 },
         );
       }
-      uploadable = audioRes.body;
-    } catch {
+    }
+
+    const DEEPGRAM_TIMEOUT_MS = 4 * 60 * 1000;
+
+    let dgResult: unknown;
+    try {
+      const timeoutPromise = new Promise<never>((_, reject) =>
+        setTimeout(
+          () =>
+            reject(new Error("Transcription timed out. Try a shorter audio file.")),
+          DEEPGRAM_TIMEOUT_MS,
+        ),
+      );
+      dgResult = await Promise.race([
+        deepgram.listen.v1.media.transcribeFile(uploadable, {
+          model: "nova-3",
+          language: "multi",
+          smart_format: true,
+          punctuate: true,
+          diarize: true,
+          utterances: true,
+          filler_words: true,
+        }),
+        timeoutPromise,
+      ]);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Unknown Deepgram error";
+      return NextResponse.json({ error: `Deepgram error: ${msg}` }, { status: 502 });
+    }
+
+    const utterances = (
+      (dgResult as { results?: { utterances?: unknown } }).results?.utterances ?? []
+    ) as Utterance[];
+    if (!utterances.length) {
       return NextResponse.json(
-        { error: "Не удалось получить аудиофайл из хранилища." },
-        { status: 502 },
+        { error: "Речь не распознана. Попробуй другое аудио." },
+        { status: 422 },
       );
     }
-  }
 
-  const DEEPGRAM_TIMEOUT_MS = 4 * 60 * 1000; // 4 минуты
+    const mergedUtterances = mergeConsecutiveBySpeaker(utterances).map((u) => ({
+      ...u,
+      transcript: sanitizeDocText(u.transcript ?? ""),
+    }));
+    const rolesBySpeaker = guessRolesByConversation(mergedUtterances);
 
-  let dgResult: unknown;
-  try {
-    const timeoutPromise = new Promise<never>((_, reject) =>
-      setTimeout(() => reject(new Error("Transcription timed out. Try a shorter audio file.")), DEEPGRAM_TIMEOUT_MS),
-    );
-    dgResult = await Promise.race([
-      deepgram.listen.v1.media.transcribeFile(uploadable, {
-        model: "nova-3",
-        language: "multi",
-        smart_format: true,
-        punctuate: true,
-        diarize: true,
-        utterances: true,
-        filler_words: true,
-      }),
-      timeoutPromise,
-    ]);
-  } catch (e) {
-    const msg = e instanceof Error ? e.message : "Unknown Deepgram error";
-    return NextResponse.json({ error: `Deepgram error: ${msg}` }, { status: 502 });
-  }
-
-  const utterances = (
-    (dgResult as { results?: { utterances?: unknown } }).results?.utterances ?? []
-  ) as Utterance[];
-  if (!utterances.length) {
-    return NextResponse.json(
-      { error: "Речь не распознана. Попробуй другое аудио." },
-      { status: 422 },
-    );
-  }
-
-  const mergedUtterances = mergeConsecutiveBySpeaker(utterances);
-  const rolesBySpeaker = guessRolesByConversation(mergedUtterances);
-
-  const metaParagraphs: Paragraph[] = [
-    new Paragraph({
-      spacing: { after: 100 },
-      children: [
-        new TextRun({ text: `${L.coach}: `, bold: true, font: "Calibri", size: 24 }),
-        new TextRun({ text: coachName, font: "Calibri", size: 24 }),
-      ],
-    }),
-    new Paragraph({
-      spacing: { after: 100 },
-      children: [
-        new TextRun({ text: `${L.client}: `, bold: true, font: "Calibri", size: 24 }),
-        new TextRun({ text: clientName, font: "Calibri", size: 24 }),
-      ],
-    }),
-    new Paragraph({
-      spacing: { after: 300 },
-      children: [
-        new TextRun({
-          text: L.dateLabel,
-          bold: true,
-          font: "Calibri",
-          size: 24,
-        }),
-        new TextRun({ text: sessionDate, font: "Calibri", size: 24 }),
-      ],
-    }),
-  ];
-
-  const rows: TableRow[] = [
-    buildHeaderRow(L),
-    ...mergedUtterances.map((u, idx) => {
-      const role = rolesBySpeaker[u.speaker];
-      const speakerLabel =
-        role === "coach" ? L.speakerCoach : role === "client" ? L.speakerClient : `${L.speakerUnknown} ${u.speaker}`;
-      return new TableRow({
-        // важно: не задаём cantSplit вообще (Word иногда трактует это как запрет переноса)
-        height: { value: 0, rule: HeightRule.AUTO },
+    const metaParagraphs: Paragraph[] = [
+      new Paragraph({
+        spacing: { after: 100 },
         children: [
-          dataCell(String(idx + 1), COL_NUM),
-          dataCell(toMmSs(u.start), COL_TIME),
-          dataCell(speakerLabel, COL_SPEAKER),
-          dataCell(u.transcript, COL_CONTENT),
-          dataCell("", COL_COMMENT),
+          new TextRun({ text: `${L.coach}: `, bold: true, font: "Calibri", size: 24 }),
+          new TextRun({ text: coachName, font: "Calibri", size: 24 }),
         ],
-      });
-    }),
-  ];
+      }),
+      new Paragraph({
+        spacing: { after: 100 },
+        children: [
+          new TextRun({ text: `${L.client}: `, bold: true, font: "Calibri", size: 24 }),
+          new TextRun({ text: clientName, font: "Calibri", size: 24 }),
+        ],
+      }),
+      new Paragraph({
+        spacing: { after: 300 },
+        children: [
+          new TextRun({
+            text: L.dateLabel,
+            bold: true,
+            font: "Calibri",
+            size: 24,
+          }),
+          new TextRun({ text: sessionDate, font: "Calibri", size: 24 }),
+        ],
+      }),
+    ];
 
-  const table = new Table({
-    width: { size: PAGE_WIDTH, type: WidthType.DXA },
-    columnWidths: [COL_NUM, COL_TIME, COL_SPEAKER, COL_CONTENT, COL_COMMENT],
-    rows,
-  });
+    const rows: TableRow[] = [
+      buildHeaderRow(L),
+      ...mergedUtterances.map((u, idx) => {
+        const role = rolesBySpeaker[u.speaker];
+        const speakerLabel =
+          role === "coach"
+            ? L.speakerCoach
+            : role === "client"
+              ? L.speakerClient
+              : `${L.speakerUnknown} ${u.speaker}`;
+        return new TableRow({
+          height: { value: 0, rule: HeightRule.AUTO },
+          children: [
+            dataCell(String(idx + 1), COL_NUM),
+            dataCell(toMmSs(u.start), COL_TIME),
+            dataCell(sanitizeDocText(speakerLabel), COL_SPEAKER),
+            dataCell(u.transcript || " ", COL_CONTENT),
+            dataCell("", COL_COMMENT),
+          ],
+        });
+      }),
+    ];
 
-  const doc = new Document({
-    styles: {
-      default: {
-        document: {
-          run: { font: "Calibri", size: 24 },
-        },
-      },
-    },
-    sections: [
-      {
-        properties: {
-          page: {
-            margin: {
-              top: 1134,
-              right: 850,
-              bottom: 1134,
-              left: 1701,
-            },
+    const table = new Table({
+      width: { size: PAGE_WIDTH, type: WidthType.DXA },
+      columnWidths: [COL_NUM, COL_TIME, COL_SPEAKER, COL_CONTENT, COL_COMMENT],
+      rows,
+    });
+
+    const doc = new Document({
+      styles: {
+        default: {
+          document: {
+            run: { font: "Calibri", size: 24 },
           },
         },
-        children: [...metaParagraphs, table],
       },
-    ],
-  });
+      sections: [
+        {
+          properties: {
+            page: {
+              margin: {
+                top: 1134,
+                right: 850,
+                bottom: 1134,
+                left: 1701,
+              },
+            },
+          },
+          children: [...metaParagraphs, table],
+        },
+      ],
+    });
 
-  const docxBuffer = await Packer.toBuffer(doc);
+    const docxBuffer = await Packer.toBuffer(doc);
 
-  return new NextResponse(new Uint8Array(docxBuffer), {
-    headers: {
-      "Content-Type":
-        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-      "Content-Disposition": 'attachment; filename="transcript-icf.docx"',
-    },
-  });
+    return new NextResponse(new Uint8Array(docxBuffer), {
+      headers: {
+        "Content-Type":
+          "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        "Content-Disposition": 'attachment; filename="transcript-icf.docx"',
+      },
+    });
+  } catch (error) {
+    return NextResponse.json(
+      {
+        error:
+          error instanceof Error
+            ? `Internal processing error: ${error.message}`
+            : "Internal processing error.",
+      },
+      { status: 500 },
+    );
+  }
 }
