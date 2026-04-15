@@ -136,6 +136,10 @@ export default function Home() {
 
   const t = translations[lang];
   const canSubmit = useMemo(() => !!file && status === "idle", [file, status]);
+  const isLocalDevelopment =
+    typeof window !== "undefined" &&
+    (window.location.hostname === "localhost" ||
+      window.location.hostname === "127.0.0.1");
   const activeStep =
     status === "uploading" ? 1 : status === "transcribing" ? 2 : status === "packaging" ? 3 : 0;
   const progressMessage =
@@ -176,17 +180,12 @@ export default function Home() {
         });
         blobUrl = uploaded.url;
       } catch (uploadError) {
-        // Keep local/dev usability by falling back to direct upload if Blob is unavailable.
-        if (uploadError instanceof Error) {
-          const message = uploadError.message.toLowerCase();
-          const shouldFallback =
-            message.includes("token") ||
-            message.includes("blob") ||
-            message.includes("client token");
-
-          if (!shouldFallback) {
-            throw new Error(t.storageError);
+        // Only use direct-upload fallback in local development.
+        if (!isLocalDevelopment) {
+          if (uploadError instanceof Error) {
+            throw new Error(uploadError.message || t.storageError);
           }
+          throw new Error(t.storageError);
         }
       }
 
