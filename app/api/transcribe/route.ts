@@ -1,3 +1,4 @@
+import { del } from "@vercel/blob";
 import { NextResponse } from "next/server";
 import {
   AlignmentType,
@@ -312,6 +313,10 @@ export async function POST(req: Request) {
     const rawLang = String(formData.get("lang") ?? "ru");
     const lang: DocLang = rawLang === "en" ? "en" : "ru";
     const L = docLabels[lang];
+    const cleanupBlob = async () => {
+      if (!blobUrl) return;
+      await del(blobUrl).catch(() => {});
+    };
 
     if (!blobUrl && !audioFile) {
       return NextResponse.json(
@@ -349,6 +354,7 @@ export async function POST(req: Request) {
       try {
         const audioRes = await fetch(blobUrl);
         if (!audioRes.ok || !audioRes.body) {
+          await cleanupBlob();
           return NextResponse.json(
             { error: "Не удалось получить аудиофайл из хранилища." },
             { status: 502 },
@@ -356,6 +362,7 @@ export async function POST(req: Request) {
         }
         uploadable = audioRes.body;
       } catch {
+        await cleanupBlob();
         return NextResponse.json(
           { error: "Не удалось получить аудиофайл из хранилища." },
           { status: 502 },
@@ -388,6 +395,7 @@ export async function POST(req: Request) {
       ]);
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Unknown Deepgram error";
+      await cleanupBlob();
       return NextResponse.json({ error: `Deepgram error: ${msg}` }, { status: 502 });
     }
 
@@ -395,6 +403,7 @@ export async function POST(req: Request) {
       (dgResult as { results?: { utterances?: unknown } }).results?.utterances ?? []
     ) as Utterance[];
     if (!utterances.length) {
+      await cleanupBlob();
       return NextResponse.json(
         { error: "Речь не распознана. Попробуй другое аудио." },
         { status: 422 },
@@ -491,6 +500,7 @@ export async function POST(req: Request) {
     });
 
     const docxBuffer = await Packer.toBuffer(doc);
+    await cleanupBlob();
 
     return new NextResponse(new Uint8Array(docxBuffer), {
       headers: {
