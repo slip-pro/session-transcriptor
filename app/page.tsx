@@ -32,7 +32,7 @@ const translations = {
     badge: "Транскрипт коуч‑сессии за пару минут",
     heading: "Загрузи аудио — получишь транскрипт в формате ICF",
     description:
-      "Мини‑интерфейс для коучей и психологов: отправляешь запись, движок делает расшифровку, а ты скачиваешь готовый файл Word.",
+      "Мини‑интерфейс для коучей: отправляешь запись, движок делает расшифровку в формате для менторинга ICF, а ты скачиваешь готовый файл Word.",
     coach: "Коуч",
     coachPlaceholder: "Напр. Александра",
     client: "Клиент",
@@ -82,7 +82,7 @@ const translations = {
     badge: "Coaching session transcript in minutes",
     heading: "Upload audio — get an ICF-format transcript",
     description:
-      "A simple tool for coaches and therapists: upload a recording, the engine transcribes it, and you download a ready Word file.",
+      "A simple tool for coaches: upload a recording, the engine transcribes it in the ICF mentoring format, and you download a ready Word file.",
     coach: "Coach",
     coachPlaceholder: "E.g. Alexandra",
     client: "Client",
