@@ -81,99 +81,148 @@ function mergeConsecutiveBySpeaker(utterances: Utterance[]): Utterance[] {
   return merged;
 }
 
-function guessRolesByConversation(utterances: Utterance[]): Record<number, Role> {
+type FirstSpeakerRole = "auto" | Role;
+
+// Слова, с которых обычно начинается реплика коуча (вопрос / приглашение).
+const COACH_STARTS = [
+  // ru
+  "как",
+  "почему",
+  "зачем",
+  "что",
+  "какой",
+  "какая",
+  "какое",
+  "какие",
+  "какую",
+  "какого",
+  "когда",
+  "где",
+  "куда",
+  "сколько",
+  "в чем",
+  "в чём",
+  "с чего",
+  "расскажите",
+  "расскажи",
+  "поделитесь",
+  "поделись",
+  "давайте",
+  "давай",
+  "представьте",
+  "представь",
+  "опишите",
+  "опиши",
+  "сформулируйте",
+  "сформулируй",
+  "выберите",
+  "выбери",
+  "а что",
+  "а как",
+  "а если",
+  "правильно ли я",
+  "если я правильно",
+  // en
+  "what",
+  "how",
+  "why",
+  "when",
+  "where",
+  "which",
+  "who",
+  "tell me",
+  "describe",
+  "imagine",
+  "let's",
+  "lets",
+  "so what",
+  "and what",
+  "and how",
+  "what if",
+  "if i understand",
+  "am i right",
+];
+
+function countWords(text: string) {
+  return text.split(/\s+/).filter(Boolean).length;
+}
+
+/**
+ * Оценка «коучевости» одного спикера. Все сигналы нормированы на число реплик
+ * / общий объём речи, чтобы более разговорчивый участник (обычно клиент)
+ * не набирал баллы просто за объём.
+ */
+function coachScore(own: Utterance[], totalWords: number) {
+  if (own.length === 0) return 0;
+
+  let questionTurns = 0;
+  let startTurns = 0;
+  let words = 0;
+
+  for (const u of own) {
+    const t = u.transcript.toLowerCase().trim();
+    words += countWords(t);
+    if (t.includes("?")) questionTurns += 1;
+    if (COACH_STARTS.some((s) => t.startsWith(s))) startTurns += 1;
+  }
+
+  const questionRate = questionTurns / own.length; // доля реплик с вопросом
+  const startRate = startTurns / own.length; // доля реплик, начатых «по-коучевски»
+  const talkShare = totalWords > 0 ? words / totalWords : 0.5; // доля слов
+  const avgWords = words / own.length;
+
+  // Коуч: чаще задаёт вопросы, говорит меньше и короче.
+  return (
+    questionRate * 5 +
+    startRate * 3 +
+    (1 - talkShare) * 3 +
+    (avgWords < 25 ? 1 : 0)
+  );
+}
+
+function guessRolesByConversation(
+  utterances: Utterance[],
+  firstSpeakerRole: FirstSpeakerRole = "auto",
+): Record<number, Role> {
   const speakers = [...new Set(utterances.map((u) => u.speaker))];
   if (speakers.length === 0) return {};
   if (speakers.length === 1) return { [speakers[0]]: "coach" };
 
   const firstSpeaker = utterances[0]!.speaker;
 
-  // Если спикеров больше двух — берём двух самых активных.
-  const counts: Record<number, number> = {};
-  for (const u of utterances) counts[u.speaker] = (counts[u.speaker] ?? 0) + 1;
-  const top2 = [...speakers].sort((a, b) => (counts[b] ?? 0) - (counts[a] ?? 0)).slice(0, 2);
+  // Если спикеров больше двух — берём двух самых активных (по числу слов).
+  const wordCounts: Record<number, number> = {};
+  for (const u of utterances) {
+    wordCounts[u.speaker] = (wordCounts[u.speaker] ?? 0) + countWords(u.transcript);
+  }
+  const top2 = [...speakers]
+    .sort((a, b) => (wordCounts[b] ?? 0) - (wordCounts[a] ?? 0))
+    .slice(0, 2);
   if (top2.length === 1) return { [top2[0]]: "coach" };
 
   const [a, b] = top2;
 
-  const coachStarts = [
-    "как",
-    "почему",
-    "зачем",
-    "что",
-    "какой",
-    "какая",
-    "какое",
-    "когда",
-    "где",
-    "куда",
-    "сколько",
-    "в чем",
-    "в чём",
-    "расскажите",
-    "поделитесь",
-    "давайте",
-    "давай",
-    "представьте",
-    "опишите",
-    "сформулируйте",
-    "выберите",
-    "с чего",
-    "какую",
-    "какого",
-    "какие",
-    "какой бы",
-    "как бы",
-  ];
-
-  const coachVerbs = [
-    "расскажите",
-    "поделитесь",
-    "помогите",
-    "сформулируйте",
-    "опишите",
-    "давайте",
-    "давай",
-    "представьте",
-    "выберите",
-    "чем",
-    "какую",
-    "какой",
-  ];
-
-  function scoreCoachText(text: string) {
-    const t = (text ?? "").toLowerCase().trim();
-    if (!t) return 0;
-
-    let score = 0;
-    score += (t.match(/\?/g) ?? []).length * 5;
-
-    // Начало реплики (часто коуч начинает с вопроса/уточнения)
-    for (const s of coachStarts) {
-      if (t.startsWith(s)) {
-        score += 4;
-        break;
-      }
-    }
-
-    // Наличие типичных фраз коуча
-    for (const v of coachVerbs) {
-      if (t.includes(v)) score += 1;
-    }
-
-    return score;
-  }
-
-  const scoreA = utterances
-    .filter((u) => u.speaker === a)
-    .reduce((acc, u) => acc + scoreCoachText(u.transcript), 0);
-  const scoreB = utterances
-    .filter((u) => u.speaker === b)
-    .reduce((acc, u) => acc + scoreCoachText(u.transcript), 0);
-
   let coachSpeaker: number;
-  if (scoreA === scoreB) coachSpeaker = firstSpeaker;
-  else coachSpeaker = scoreA > scoreB ? a : b;
+
+  if (firstSpeakerRole !== "auto") {
+    // Пользователь явно сказал, кто говорит первым — это надёжнее эвристики.
+    const firstInTop2 = top2.includes(firstSpeaker) ? firstSpeaker : a;
+    const other = firstInTop2 === a ? b : a;
+    coachSpeaker = firstSpeakerRole === "coach" ? firstInTop2 : other;
+  } else {
+    const ownA = utterances.filter((u) => u.speaker === a);
+    const ownB = utterances.filter((u) => u.speaker === b);
+    const totalWords = (wordCounts[a] ?? 0) + (wordCounts[b] ?? 0);
+    const scoreA = coachScore(ownA, totalWords);
+    const scoreB = coachScore(ownB, totalWords);
+
+    // Если разница незначительная — считаем коучем того, кто открыл сессию.
+    if (Math.abs(scoreA - scoreB) < 0.5) {
+      coachSpeaker = top2.includes(firstSpeaker) ? firstSpeaker : a;
+    } else {
+      coachSpeaker = scoreA > scoreB ? a : b;
+    }
+  }
 
   const clientSpeaker = coachSpeaker === a ? b : a;
 
@@ -313,6 +362,11 @@ export async function POST(req: Request) {
     const rawLang = String(formData.get("lang") ?? "ru");
     const lang: DocLang = rawLang === "en" ? "en" : "ru";
     const L = docLabels[lang];
+    const rawFirstSpeaker = String(formData.get("firstSpeakerRole") ?? "auto");
+    const firstSpeakerRole: FirstSpeakerRole =
+      rawFirstSpeaker === "coach" || rawFirstSpeaker === "client"
+        ? rawFirstSpeaker
+        : "auto";
     const cleanupBlob = async () => {
       if (!blobUrl) return;
       await del(blobUrl).catch(() => {});
@@ -414,7 +468,10 @@ export async function POST(req: Request) {
       ...u,
       transcript: sanitizeDocText(u.transcript ?? ""),
     }));
-    const rolesBySpeaker = guessRolesByConversation(mergedUtterances);
+    const rolesBySpeaker = guessRolesByConversation(
+      mergedUtterances,
+      firstSpeakerRole,
+    );
 
     const metaParagraphs: Paragraph[] = [
       new Paragraph({

@@ -38,6 +38,12 @@ const translations = {
     client: "Клиент",
     clientPlaceholder: "Напр. Ирина",
     date: "Дата",
+    firstSpeaker: "Кто говорит первым",
+    firstSpeakerAuto: "Определить автоматически",
+    firstSpeakerCoach: "Коуч",
+    firstSpeakerClient: "Клиент",
+    firstSpeakerHint:
+      "Если роли в транскрипте перепутаны — укажи, кто открывает запись, и роли расставятся точно.",
     audioLabel: "Аудио‑файл (mp3, m4a, wav)",
     chooseFile: "Выбрать файл",
     noFile: "Файл не выбран",
@@ -82,6 +88,12 @@ const translations = {
     client: "Client",
     clientPlaceholder: "E.g. Irina",
     date: "Date",
+    firstSpeaker: "Who speaks first",
+    firstSpeakerAuto: "Detect automatically",
+    firstSpeakerCoach: "Coach",
+    firstSpeakerClient: "Client",
+    firstSpeakerHint:
+      "If roles in the transcript get mixed up, tell us who opens the recording and the roles will be assigned exactly.",
     audioLabel: "Audio file (mp3, m4a, wav)",
     chooseFile: "Choose file",
     noFile: "No file selected",
@@ -133,6 +145,9 @@ export default function Home() {
   const [coachName, setCoachName] = useState("");
   const [clientName, setClientName] = useState("");
   const [sessionDate, setSessionDate] = useState("");
+  const [firstSpeakerRole, setFirstSpeakerRole] = useState<
+    "auto" | "coach" | "client"
+  >("auto");
 
   const t = translations[lang];
   const canSubmit = useMemo(() => !!file && status === "idle", [file, status]);
@@ -199,6 +214,7 @@ export default function Home() {
       formData.append("clientName", clientName);
       formData.append("sessionDate", sessionDate);
       formData.append("lang", lang);
+      formData.append("firstSpeakerRole", firstSpeakerRole);
 
       const res = await fetch("/api/transcribe", {
         method: "POST",
@@ -301,6 +317,28 @@ export default function Home() {
                   className="h-11 rounded-xl bg-white px-4 text-sm text-zinc-800 ring-1 ring-zinc-900/10 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-rose-300"
                 />
               </label>
+            </div>
+
+            <div className="flex flex-col gap-2">
+              <label className="flex flex-col gap-2">
+                <span className="text-sm font-medium text-zinc-800">
+                  {t.firstSpeaker}
+                </span>
+                <select
+                  value={firstSpeakerRole}
+                  onChange={(e) =>
+                    setFirstSpeakerRole(
+                      e.target.value as "auto" | "coach" | "client",
+                    )
+                  }
+                  className="h-11 rounded-xl bg-white px-4 text-sm text-zinc-800 ring-1 ring-zinc-900/10 focus:outline-none focus:ring-2 focus:ring-rose-300"
+                >
+                  <option value="auto">{t.firstSpeakerAuto}</option>
+                  <option value="coach">{t.firstSpeakerCoach}</option>
+                  <option value="client">{t.firstSpeakerClient}</option>
+                </select>
+              </label>
+              <p className="text-xs leading-5 text-zinc-500">{t.firstSpeakerHint}</p>
             </div>
 
             <div className="flex flex-col gap-2">
