@@ -62,7 +62,7 @@ const translations = {
       "Собираю Word-документ и подготавливаю скачивание.",
     hint: "",
     footer:
-      "Аудио не сохраняется — файл обрабатывается в памяти и удаляется сразу после расшифровки. Распознавание речи выполняется через Deepgram.",
+      "Аудио не сохраняется — файл обрабатывается в памяти и удаляется сразу после расшифровки. Распознавание речи выполняется внешней облачной нейросетью Deepgram, поэтому не загружайте записи с конфиденциальными данными и заранее получите согласие клиента на расшифровку.",
     authorLabel: "Создатель сервиса",
     authorName: "Александра Липчанская",
     authorBio: "ACC ICF, вице-президент ICF Cyprus, куратор программ Erickson Cyprus",
@@ -112,7 +112,7 @@ const translations = {
       "Generating the Word document and preparing the download.",
     hint: "",
     footer:
-      "Audio is not stored — your file is processed in memory and discarded immediately after transcription. Speech recognition is powered by Deepgram.",
+      "Audio is not stored — your file is processed in memory and discarded immediately after transcription. Speech recognition is performed by Deepgram, an external cloud neural network, so do not upload recordings containing confidential data and make sure you have your client's consent to transcribe.",
     authorLabel: "Created by",
     authorName: "Alexandra Lipchanskaya",
     authorBio: "ACC ICF, VP of ICF Cyprus, Program Curator at Erickson Cyprus",
