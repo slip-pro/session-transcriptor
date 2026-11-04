@@ -16,3 +16,9 @@ credentials were not read or exercised; no audio or transcript was sent anywhere
 
 `npm run test` and `npm run typecheck` come from package.json. They were not run for this installation;
 the Vibeproof installation selftest checks the harness only.
+## C-2 isolated UI review (verified 2026-11-04)
+Actual browser source is `.local/web`, a separate dirty checkout. Do not replace or stage earlier work wholesale. Starting UI snapshot: `.local/c2-before`.
+Run from `.local/web` with installed Node 24.22.1:
+`C:/Users/user/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/bin/node.exe --import tsx scripts/cabinet-c2-demo.ts`
+The helper seeds only `.local/web/.local/cabinet-c2-demo`, copies app/lib/public into sibling `.local/cabinet-c2-preview` with its own build output, binds loopback3104 and starts no worker. Existing preview3100 and data stay untouched. Readiness: GET /cabinet, sign in synthetic coach@example.test / Local-demo-coach-2026, heading «Запись встречи → Word». Refresh copied app after source edits or restart this helper. Stop only the process started by this helper after owner review.
+Chrome checks: Node tests/cabinet-c2-smoke.cjs and tests/cabinet-c2-journey.cjs from `.local/web`; existing installed Chrome and bundled Playwright, no installs. Output/screenshots in root `.git/vibeproof-logs/c2-*`.

@@ -1,0 +1,10 @@
+# C-2 ready for owner review
+Implementation is local, not published. Agreed brief7bcbba8; reviewed design1c57872. Nested web code remains uncommitted to preserve its substantial earlier uncommitted work. Source snapshot `.local/c2-before` records exact starting UI.
+Changed login, main entry, audio confirmation, JSON/note/client forms, result/voice/Word, note positioning and optional structure, client preparation/history, reader presentation and legacy entry. Existing data/API/auth/provider flow unchanged.
+Evidence: root `.git/vibeproof-logs/c2-tests-final.log`:25 passed,0 failed,0 skipped. Typecheck and affected lint clean. Browser smoke confirms login, compact metadata/edit, note create/reload,320/390 note overflow. Journey confirms JSON→voice selection→Word download, populated digest/reload, reader search, client preparation/history and legacy route, no page errors.
+Preview http://localhost:3104/cabinet; synthetic coach@example.test / Local-demo-coach-2026. Helper in .local/web/scripts/cabinet-c2-demo.ts; copied preview source means sync/restart after further edits.
+Independent source reviewer caught lost note on source switch and hidden role audio playing; fixes preserve textarea DOM and centralize pause on entering reader. Design critic initial20/32→23/32 across inspected states after corrections; this is not a whole-app numerical comparison to initial18/36 because evaluated criteria differ. Latest visual comments addressed locally (copy consistency, voice choice wording, nested voice cards).
+Limitations: no real ASR/AI calls; no real recordings edited; no physical phone/keyboard; no production build/release qualification; starting screenshots not captured, source snapshot and user's initial screenshots retained. Owner acceptance and finish stage pending.
+
+Final bounded fixes: central reader-transition pause verified with new browser regression tests/cabinet-c2-audio-source.cjs (failed before/passed after). Final typecheck/lint and both browser journeys pass after voice copy/separators changes. Preview session93150 remains running. No further polishing pending before owner review.
+
