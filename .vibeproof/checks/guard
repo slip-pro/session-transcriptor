@@ -1,0 +1,89 @@
+#!/bin/sh
+# Snapshot the installed harness at install/update; compare it without changing the project.
+# Usage: guard record | guard check. Project rules outside the AGENTS block are not harness files.
+
+root=$(git rev-parse --show-toplevel 2>/dev/null) || { echo 'VIBEPROOF REFUSED VP-CANT-CHECK: not inside a git repository' >&2; exit 3; }
+cd "$root" || exit 3
+[ -f .vibeproof/checks/lib.sh ] || { echo 'VIBEPROOF REFUSED VP-CANT-CHECK: checks/lib.sh is missing' >&2; exit 3; }
+. .vibeproof/checks/lib.sh
+
+snapshot() {
+  [ -f .vibeproof/installed-files ] || return 1
+  printf 'format: 1\n'
+  # Normalize known prose/config text independently of core.autocrlf. Executable scripts and
+  # binary skill resources keep their exact bytes; CRLF in a shell script is a real fault.
+  paths=$(find .vibeproof/checks -type f -print) || return 1
+  paths="$paths
+.vibeproof/installed-files"
+  [ ! -f .vibeproof/version ] || paths="$paths
+.vibeproof/version"
+  while IFS= read -r path; do
+    path=$(printf '%s' "$path" | tr -d '\r')
+    case "$path" in
+      /*|*../*|*\\*) return 1 ;;
+      .agents/skills/vibeproof-*/*|.claude/skills/vibeproof-*/*|.claude/agents/vibeproof-*|.codex/agents/vibeproof-*|.github/workflows/vibeproof.yml)
+        paths="$paths
+$path" ;;
+    esac
+  done < .vibeproof/installed-files
+  for dir in .agents/skills/vibeproof-* .claude/skills/vibeproof-* .claude/agents .codex/agents; do
+    [ -d "$dir" ] || continue
+    case "$dir" in
+      */agents) found=$(find "$dir" -maxdepth 1 -type f -name 'vibeproof-*' -print) || return 1 ;;
+      *) found=$(find "$dir" -type f -print) || return 1 ;;
+    esac
+    paths="$paths
+$found"
+  done
+  # The pipe runs in a subshell; its exit status must propagate to the caller.
+  printf '%s\n' "$paths" | LC_ALL=C sort -u | while IFS= read -r path; do
+    [ -f "$path" ] || exit 1
+    case "$path" in
+      *.md|*.yml|*.yaml|*.toml|.vibeproof/version|.vibeproof/installed-files)
+        sed 's/\r$//' "$path" > "$text_tmp" || exit 1
+        hash=$(git hash-object --no-filters -- "$text_tmp") || exit 1 ;;
+      *) hash=$(git hash-object --no-filters -- "$path") || exit 1 ;;
+    esac
+    printf '%s  %s\n' "$hash" "$path"
+  done || return 1
+  block=$(awk '
+    { sub(/\r$/, "") }
+    /^<!-- vibeproof:start/ { if (seen++) exit 1; on = 1 }
+    on { print }
+    /^<!-- vibeproof:end/ { if (!on) exit 1; on = 0; ended++ }
+    END { if (seen != 1 || ended != 1 || on) exit 1 }
+  ' AGENTS.md) || return 1
+  hash=$(printf '%s\n' "$block" | git hash-object --stdin) || return 1
+  printf '%s  @AGENTS-block\n' "$hash"
+  hookdir=$(git config core.hooksPath 2>/dev/null) || hookdir=$(git rev-parse --git-path hooks)
+  [ -f "$hookdir/commit-msg" ] && [ -x "$hookdir/commit-msg" ] || return 1
+  # Hooks must run byte-for-byte, including on a machine that changes text line endings.
+  hash=$(git hash-object --no-filters -- "$hookdir/commit-msg") || return 1
+  printf '%s  @commit-msg-hook\n' "$hash"
+}
+
+tmp=$(mktemp) || vp_cant_check 'no temporary file for harness fingerprints'
+text_tmp=$(mktemp) || { rm -f "$tmp"; vp_cant_check 'no temporary file for normalized text'; }
+trap 'rm -f "$tmp" "$text_tmp"' EXIT
+snapshot > "$tmp" || vp_cant_check 'could not fingerprint the installed harness, AGENTS block or commit hook; repair the installation'
+case "$1" in
+record)
+  # Only the install/update guide calls this; the commit guard requires a version change with it.
+  mv "$tmp" .vibeproof/fingerprints || vp_cant_check 'could not write harness fingerprints'
+  echo 'harness fingerprints recorded; include them in the install/update commit'
+  ;;
+check)
+  [ -f .vibeproof/fingerprints ] || vp_cant_check 'harness fingerprints are missing; update Vibeproof with the install guide'
+  cmp -s "$tmp" .vibeproof/fingerprints || {
+    vp_refuse VP-GUARD 'the installed harness or commit hook differs from its install/update fingerprints; restore it or complete the update'
+    exit 1
+  }
+  git diff --quiet HEAD -- .vibeproof/fingerprints || {
+    vp_refuse VP-GUARD 'harness fingerprints differ from the committed installation; finish or undo the update'
+    exit 1
+  }
+  git ls-files --error-unmatch .vibeproof/fingerprints >/dev/null 2>&1 || vp_cant_check 'harness fingerprints are not committed'
+  echo 'harness fingerprints match'
+  ;;
+*) echo 'usage: guard record | guard check' >&2; exit 2 ;;
+esac

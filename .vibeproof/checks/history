@@ -1,0 +1,98 @@
+#!/bin/sh
+# Re-runs the commit check on commits already made (C-21, BD-42), with each commit's message. Used by the GitHub check on
+# every push, so a commit made with --no-verify, or with the hook removed, is still caught.
+# Usage: history <old-commit> <new-commit>
+#   Checks every commit after <old-commit> up to <new-commit>. If <old-commit> is empty or all zeros
+#   (a new branch), checks every commit after the one that installed Vibeproof.
+# Each commit is checked by the check scripts as they were in its parent, against the parent, so a
+# commit can't weaken the checks that judge it; an install or update (a changed .vibeproof/version)
+# is judged by the checks it brings. A refused commit the person chose to keep is skipped
+# only if <new-commit> holds product/records/waive-<its full id>, with their reason.
+
+root=$(git rev-parse --show-toplevel 2>/dev/null) || { echo 'VIBEPROOF REFUSED VP-CANT-CHECK: not inside a git repository' >&2; exit 3; }
+cd "$root" || exit 3
+. "$root/.vibeproof/checks/lib.sh"
+
+old=$1
+new=${2:-HEAD}
+case "$old" in ''|*[!0]*) ;; *) old= ;; esac
+
+if [ -z "$old" ]; then
+  first=$(git log --format=%H --diff-filter=A -- .vibeproof/version "$new" | tail -n 1)
+  [ -n "$first" ] || { echo "Vibeproof is not installed on this branch; nothing to check"; exit 0; }
+  range="$first..$new"
+else
+  range="$old..$new"
+fi
+
+commits=$(git rev-list --reverse "$range") || {
+  echo "VIBEPROOF REFUSED VP-CANT-CHECK: git could not list the commits in $range" >&2; exit 3; }
+[ -n "$commits" ] || { echo "no new commits to check"; exit 0; }
+
+scratch=$(mktemp -d 2>/dev/null) || { echo 'VIBEPROOF REFUSED VP-CANT-CHECK: no temporary folder' >&2; exit 3; }
+trap 'git worktree remove --force "$scratch/wt" >/dev/null 2>&1; rm -rf "$scratch"' EXIT
+
+failed=0
+checked=0
+for c in $commits; do
+  parent=$(git rev-parse "$c^" 2>/dev/null) || continue
+  others=$(git rev-list --parents -n 1 "$c" | cut -d" " -f3-)
+  # Commits before the install have no checks to judge them.
+  git cat-file -e "$parent:.vibeproof/version" 2>/dev/null || continue
+  git worktree remove --force "$scratch/wt" >/dev/null 2>&1
+  git worktree add -q --detach "$scratch/wt" "$parent" 2>/dev/null ||
+    { echo "VIBEPROOF REFUSED VP-CANT-CHECK: could not check out $parent" >&2; exit 3; }
+  ( cd "$scratch/wt" && git read-tree "$c" ) ||
+    { echo "VIBEPROOF REFUSED VP-CANT-CHECK: could not read commit $c" >&2; exit 3; }
+  git log -1 --format=%B "$c" > "$scratch/message" ||
+    { echo "VIBEPROOF REFUSED VP-CANT-CHECK: could not read the message of $c" >&2; exit 3; }
+  # An update that touches only harness files (.vibeproof/ and paths listed as installed, before
+  # or after) may replace the checks anyway, so it is judged by the checks it brings; very old
+  # versions are slow on some hosts. Any other commit, including an update that also changes
+  # product files or code, is judged by its parent's checks, so new checks never judge new code.
+  # Only the parent's list is trusted: an update cannot make a file "harness" by listing it. New
+  # harness files must be Vibeproof's own skill, agent or workflow paths.
+  harness_only=1
+  git show "$parent:.vibeproof/installed-files" > "$scratch/listed" 2>/dev/null || : > "$scratch/listed"
+  git -c core.quotepath=off diff --name-only --no-renames "$parent" "$c" > "$scratch/paths" ||
+    { echo "VIBEPROOF REFUSED VP-CANT-CHECK: could not list the paths of $c" >&2; exit 3; }
+  while IFS= read -r f; do
+    case "$f" in
+      \"*) harness_only=0; break ;;  # a name git had to quote: never treated as harness
+      .vibeproof/*) continue ;;
+    esac
+    vp_harness_path "$f" && continue
+    grep -Fqx -- "$f" "$scratch/listed" || { harness_only=0; break; }
+  done < "$scratch/paths"
+  if [ "$harness_only" -eq 1 ] &&
+     [ "$(git rev-parse -q --verify "$parent:.vibeproof/version")" != "$(git rev-parse -q --verify "$c:.vibeproof/version")" ] &&
+     git cat-file -e "$c:.vibeproof/checks/commit-msg" 2>/dev/null; then
+    rm -rf "$scratch/wt/.vibeproof/checks" &&
+      ( cd "$scratch/wt" && git checkout-index -q -f -- $(git ls-tree -r --name-only "$c" -- .vibeproof/checks/) ) ||
+      { echo "VIBEPROOF REFUSED VP-CANT-CHECK: could not check out the checks of $c" >&2; exit 3; }
+  fi
+  # Parents from before BD-42 still judge with the commit check they shipped. A merge is judged
+  # by its own edits, and only by checks that know merges (--merge); older ones skipped them.
+  if [ -n "$others" ]; then
+    grep -q -e '--merge' "$scratch/wt/.vibeproof/checks/commit-msg" 2>/dev/null || continue
+    out=$(cd "$scratch/wt" && sh .vibeproof/checks/commit-msg "$scratch/message" --merge $others 2>&1)
+  elif [ -f "$scratch/wt/.vibeproof/checks/commit-msg" ]; then
+    out=$(cd "$scratch/wt" && sh .vibeproof/checks/commit-msg "$scratch/message" 2>&1)
+  else
+    out=$(cd "$scratch/wt" && sh .vibeproof/checks/pre-commit 2>&1)
+  fi
+  rc=$?
+  checked=$((checked + 1))
+  if [ "$rc" -ne 0 ] && git cat-file -e "$new:product/records/waive-$c" 2>/dev/null; then
+    printf 'commit %s: refused, but kept by the person (product/records/waive-%s)\n' "$(git rev-parse --short "$c")" "$c"
+  elif [ "$rc" -ne 0 ]; then
+    failed=$((failed + 1))
+    printf 'commit %s (%s):\n%s\n' "$(git rev-parse --short "$c")" "$(git log -1 --format=%s "$c")" "$out"
+  fi
+done
+
+if [ "$failed" -ne 0 ]; then
+  printf 'VIBEPROOF REFUSED VP-HISTORY: %s of %s commits would have been refused by the commit check\n' "$failed" "$checked" >&2
+  exit 1
+fi
+echo "checked $checked commits: all pass"

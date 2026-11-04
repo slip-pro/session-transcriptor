@@ -1,3 +1,5 @@
+@AGENTS.md
+
 # Session Transcriptor
 
 CLI tool for coaching session transcription. Transcribe audio via Deepgram or PyannoteAI, format with Claude Code skill, generate DOCX.

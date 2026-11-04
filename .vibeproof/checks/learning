@@ -1,0 +1,120 @@
+#!/bin/sh
+# Read-only, committed history discovery. --force includes deferred inputs and permits batches
+# smaller than five; it never enables review, imports pre-baseline history or repeats complete work.
+case "$*" in 'pending'|'pending --force') ;; *) echo 'usage: learning pending [--force]' >&2; exit 2 ;; esac
+force=0; [ "$2" != --force ] || force=1
+root=$(git rev-parse --show-toplevel 2>/dev/null) || exit 3
+cd "$root" || exit 3
+snapshot=$(git rev-parse HEAD) || exit 3
+unknown() {
+  printf 'Mode: unknown\nSnapshot: %s\nPending: unknown\nDeferred: unknown\n' "$snapshot"
+  printf 'VIBEPROOF LEARNING: %s\n' "$1" >&2
+  exit 3
+}
+tmp=$(mktemp -d) || unknown 'no temporary directory'
+trap 'rm -rf "$tmp"' EXIT
+git ls-tree -r --name-only "$snapshot" -- product/settings.md product/learning.md > "$tmp/product-files" || unknown 'unreadable product tree'
+if grep -qx product/settings.md "$tmp/product-files"; then
+  git show "$snapshot:product/settings.md" > "$tmp/settings" 2>/dev/null || unknown 'committed settings unavailable'
+else
+  : > "$tmp/settings"
+fi
+awk '
+  { sub(/\r$/, "") }
+  /^History review:/ { if (++n != 1 || $0 !~ /^History review: (on|off)$/) exit 1; mode=$3 }
+  /^History review from:/ { if (++b != 1 || $0 !~ /^History review from: [0-9a-f]+$/ || length($4)!=40) exit 1; base=$4 }
+  END { print (mode == "" ? "off" : mode), base }
+' "$tmp/settings" > "$tmp/config" || unknown 'malformed history settings'
+read -r mode baseline < "$tmp/config"
+if [ "$mode" = off ]; then
+  printf 'Mode: off\nSnapshot: %s\nPending: 0\nDeferred: 0\n' "$snapshot"
+  exit 0
+fi
+[ -n "$baseline" ] && git merge-base --is-ancestor "$baseline" "$snapshot" 2>/dev/null || unknown 'missing or divergent baseline'
+# A later merge must not import closes from a branch that never inherited opt-in.
+git log --ancestry-path --reverse --topo-order --format='%H %s' "$baseline..$snapshot" > "$tmp/history" || unknown 'unreadable history'
+sed -n 's/^\([0-9a-f][0-9a-f]*\) close \(C-[0-9][0-9]*\)$/\1 \2/p' "$tmp/history" > "$tmp/close-history" || unknown 'unreadable close history'
+: > "$tmp/closes"
+while read -r commit id; do
+  # A shared pre-opt-in baseline alone does not prove that this branch inherited enablement.
+  # The baseline field is introduced on opt-in and retained during pauses.
+  git ls-tree --name-only "$commit" -- product/settings.md > "$tmp/close-setting-path" || unknown 'unreadable close settings tree'
+  grep -qx product/settings.md "$tmp/close-setting-path" || continue
+  git show "$commit:product/settings.md" > "$tmp/close-settings" || unknown 'unreadable close settings'
+  scope=$(awk -v base="$baseline" '
+    {sub(/\r$/, "")}
+    /^History review from:/ {
+      n++; if ($0 !~ /^History review from: [0-9a-f]+$/ || length($4)!=40) bad=1
+      value=$4
+    }
+    END {if (n>1 || bad) print "bad"; else if (!n) print "absent"; else print (value==base ? "same" : "other")}
+  ' "$tmp/close-settings") || unknown 'unreadable close baseline'
+  case "$scope" in same) ;; absent|other) continue ;; *) unknown "ambiguous opt-in scope for $id" ;; esac
+  parents=$(git show -s --format=%P "$commit") || unknown 'unreadable parents'
+  case "$parents" in ''|*' '*) unknown "ambiguous close $id" ;; esac
+  open=product/changes/$id; closed=product/changes/closed/$id
+  old=$(git rev-parse "$parents:$open" 2>/dev/null) || unknown "close $id has no original directory"
+  moved=$(git rev-parse "$commit:$closed" 2>/dev/null) || unknown "close $id has no closed directory"
+  [ "$old" = "$moved" ] &&
+    git cat-file -e "$commit:$closed/brief.md" 2>/dev/null &&
+    git cat-file -e "$commit:$closed/report.md" 2>/dev/null &&
+    ! git cat-file -e "$commit:$open" 2>/dev/null &&
+    ! git cat-file -e "$parents:$closed" 2>/dev/null || unknown "ambiguous close transition $id"
+  git diff-tree --no-commit-id --name-only -r --no-renames "$parents" "$commit" > "$tmp/paths" || unknown 'unreadable close paths'
+  awk -v o="$open/" -v c="$closed/" '$0 != "product/changelog.md" && index($0,o)!=1 && index($0,c)!=1 {exit 1}' "$tmp/paths" || unknown "unrelated paths in close $id"
+  grep -qx product/changelog.md "$tmp/paths" || unknown "close $id has no changelog"
+  git cat-file -e "$snapshot:$closed/brief.md" 2>/dev/null || unknown "closed directory $id is missing"
+  grep -q "^$id " "$tmp/closes" && unknown "duplicate close $id"
+  git show "$commit:$closed/report.md" > "$tmp/report" || unknown 'unreadable close report'
+  urgency=$(awk '{sub(/\r$/, "")} $0=="Learning urgency: urgent" {urgent=1} END {print (urgent ? "urgent" : "normal")}' "$tmp/report") || unknown 'unreadable urgency'
+  printf '%s %s %s\n' "$id" "$commit" "${urgency:-normal}" >> "$tmp/closes"
+done < "$tmp/close-history"
+: > "$tmp/reviews"; : > "$tmp/complete"; : > "$tmp/deferred"
+if grep -qx product/learning.md "$tmp/product-files"; then
+  git show "$snapshot:product/learning.md" > "$tmp/learning" || unknown 'unreadable learning record'
+  awk '
+    function flush( i) {
+      if (!section) return
+      if (sn!=1 || an!=1 || n==0 || (analysis=="partial" && (rn!=1 || retry!="manual")) || rn>1 || (rn==1 && retry!="manual")) bad=1
+      for(i=1;i<=n;i++) print snap,analysis,inputs[i]
+    }
+    {sub(/\r$/, "")}
+    /^## Review / {
+      flush(); if (seen[$0]++) bad=1
+      heading=$0; section=1; sn=an=rn=n=0; snap=analysis=retry=""; next
+    }
+    /^## / { flush(); section=0; next }
+    /^(Snapshot|Analysis|Retry|Input):/ {
+      if(!section) {bad=1; next}
+      if(/^Snapshot:/) {sn++; if($0 !~ /^Snapshot: [0-9a-f]+$/ || length($2)!=40) bad=1; snap=$2}
+      if(/^Analysis:/) {an++; if($0 !~ /^Analysis: (complete|partial)$/) bad=1; analysis=$2}
+      if(/^Retry:/) {rn++; retry=$2; if($0!="Retry: manual") bad=1}
+      if(/^Input:/) {if($0 !~ /^Input: C-[0-9]+ [0-9a-f]+$/ || length($3)!=40 || duplicate[heading SUBSEP $2]++) bad=1; inputs[++n]=$2 " " $3}
+    }
+    END {flush(); exit bad}
+  ' "$tmp/learning" > "$tmp/reviews" || unknown 'malformed review record'
+fi
+while read -r reviewed analysis id commit; do
+  [ -n "$reviewed" ] || continue
+  git merge-base --is-ancestor "$reviewed" "$snapshot" 2>/dev/null &&
+    git merge-base --is-ancestor "$commit" "$reviewed" 2>/dev/null || unknown 'review snapshot/input ancestry is invalid'
+  awk -v id="$id" -v c="$commit" '$1==id && $2==c {found=1} END {exit !found}' "$tmp/closes" || unknown 'review input is not a genuine post-baseline close'
+  if [ "$analysis" = complete ]; then printf '%s\n' "$id" >> "$tmp/complete"; else printf '%s\n' "$id" >> "$tmp/deferred"; fi
+done < "$tmp/reviews"
+awk -v deferred_file="$tmp/waiting" -v pending_file="$tmp/pending" 'FILENAME==ARGV[1] {complete[$1]=1;next} FILENAME==ARGV[2] {deferred[$1]=1;next}
+  !complete[$1] {if(deferred[$1]) print > deferred_file; else print > pending_file}
+' "$tmp/complete" "$tmp/deferred" "$tmp/closes" || unknown 'cannot select inputs'
+touch "$tmp/waiting" "$tmp/pending"
+pending=$(wc -l < "$tmp/pending" | tr -d ' '); deferred=$(wc -l < "$tmp/waiting" | tr -d ' ')
+cp "$tmp/pending" "$tmp/eligible" || unknown 'cannot select inputs'
+[ "$force" = 0 ] || cat "$tmp/waiting" >> "$tmp/eligible"
+mode=idle
+if [ "$pending" -ge 5 ] || grep -q ' urgent$' "$tmp/pending" || { [ "$force" = 1 ] && [ -s "$tmp/eligible" ]; }; then mode=due; fi
+printf 'Mode: %s\nSnapshot: %s\nPending: %s\nDeferred: %s\n' "$mode" "$snapshot" "$pending" "$deferred"
+if [ "$mode" = due ]; then
+  # Preserve the original Git ordering even when a forced batch includes deferred work.
+  awk 'FILENAME==ARGV[1] {eligible[$1]=1;next} eligible[$1] {print}' "$tmp/eligible" "$tmp/closes" > "$tmp/ordered"
+  { awk '$3=="urgent"' "$tmp/ordered"; awk '$3!="urgent"' "$tmp/ordered"; } |
+    awk 'NR<=5 {print "Input: " $1 " " $2}'
+fi
+exit 0

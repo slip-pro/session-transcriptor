@@ -1,0 +1,70 @@
+#!/bin/sh
+# Proves the commit check works in this project, without touching the project itself.
+# Usage: selftest
+# Checks fingerprints and instruction structure, then exercises the installed commit-msg hook in a
+# scratch clone. Never changes the source project's index, working tree or history.
+
+root=$(git rev-parse --show-toplevel 2>/dev/null) || { echo 'VIBEPROOF REFUSED VP-CANT-CHECK: not inside a git repository' >&2; exit 3; }
+cd "$root" || exit 3
+[ -f "$root/.vibeproof/checks/lib.sh" ] || { echo 'VIBEPROOF REFUSED VP-CANT-CHECK: .vibeproof/checks/lib.sh is missing' >&2; exit 3; }
+. "$root/.vibeproof/checks/lib.sh"
+
+fail() { printf 'VIBEPROOF SELFTEST FAILED: %s\n' "$1" >&2; exit 1; }
+
+hookdir=$(git config core.hooksPath 2>/dev/null) || hookdir=$(git rev-parse --git-path hooks) ||
+  vp_cant_check "git could not tell where the hooks are"
+grep -q '.vibeproof/checks/commit-msg' "$hookdir/commit-msg" 2>/dev/null ||
+  fail "the commit check is not installed in $hookdir/commit-msg"
+hook=$(cd "$hookdir" && pwd)/commit-msg
+[ -x "$hook" ] || fail 'the installed commit hook is not executable'
+[ -n "$(vp_git ls-files -- .vibeproof/checks/commit-msg)" ] ||
+  fail "the check scripts are not committed, so other machines won't have them"
+sh .vibeproof/checks/guard check >/dev/null || fail 'installed harness fingerprints could not be verified'
+for script in .vibeproof/checks/*; do
+  [ -f "$script" ] || continue
+  sh -n "$script" || fail "shell syntax failed in $script"
+done
+block_lines=$(awk '/^<!-- vibeproof:start/ { on = 1 } on { n++ } /^<!-- vibeproof:end/ { on = 0 } END { print n + 0 }' AGENTS.md)
+[ "$block_lines" -le 60 ] || fail "the AGENTS block has $block_lines lines; keep it within 60"
+for name in change design build finish publish; do
+  for adapter in .agents .claude; do
+    skill="$adapter/skills/vibeproof-$name/SKILL.md"
+    [ -f "$skill" ] || fail "the $adapter copy of vibeproof-$name is missing"
+    # The shipped adapters use simple, single-line frontmatter, not arbitrary YAML.
+    LC_ALL=C awk -v expected="vibeproof-$name" '
+      { sub(/\r$/, "") }
+      NR == 1 { if ($0 != "---") exit 1; next }
+      $0 == "---" { closed = 1; exit }
+      $0 == "name: " expected { name++ }
+      /^description: [^[:space:]]/ { description++; if (length(substr($0, 14)) > 1536) bad = 1 }
+      END { if (!closed || name != 1 || description != 1 || bad) exit 1 }
+    ' "$skill" || fail "$skill needs single-line name/description frontmatter with a description within 1,536 bytes"
+  done
+done
+
+scratch=$(mktemp -d 2>/dev/null) || vp_cant_check "no temporary folder"
+trap 'rm -rf "$scratch"' EXIT
+git clone -q --no-hardlinks "$root" "$scratch/copy" || vp_cant_check "the project could not be copied"
+mkdir -p "$scratch/hooks" || vp_cant_check 'could not create the scratch hook directory'
+cp "$hook" "$scratch/hooks/commit-msg" && chmod +x "$scratch/hooks/commit-msg" ||
+  vp_cant_check 'could not copy the installed hook'
+cd "$scratch/copy" || exit 3
+git config user.name "Vibeproof selftest"
+git config user.email "selftest@example.invalid"
+git config core.hooksPath "$scratch/hooks" || vp_cant_check 'could not select the copied hook'
+# Open agreed work in the source must not let the planted change through.
+git ls-files -- 'product/changes/*/brief.md' | grep -v '/closed/' | while IFS= read -r brief; do
+  git rm -q --cached -- "$brief" || exit 1
+done || vp_cant_check 'could not prepare the scratch copy'
+git commit -q --no-verify -m 'selftest: no open changes' >/dev/null 2>&1
+
+printf 'planted by the Vibeproof selftest\n' > vibeproof-selftest-planted.txt
+git add vibeproof-selftest-planted.txt
+out=$(git commit -q -m "planted change" 2>&1)
+rc=$?
+case "$out" in
+  *"VIBEPROOF REFUSED VP-AGREEMENT"*) [ "$rc" -ne 0 ] || fail "the check printed a refusal but the commit went through" ;;
+  *) fail "a change with no agreement was not refused. The check printed: $out" ;;
+esac
+
+echo "selftest passed: the commit check is installed and refuses code with no agreement"

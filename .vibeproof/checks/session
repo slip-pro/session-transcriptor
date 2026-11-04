@@ -1,0 +1,105 @@
+#!/bin/sh
+# Session start. Usage: session
+# Prints one line per thing the agent must act on, each starting with "VIBEPROOF SESSION:", or
+# "VIBEPROOF SESSION: all clear". The agent tells the person only what affects them, once.
+# Does not edit tracked files; a passed self-test is remembered in local git metadata.
+
+root=$(git rev-parse --show-toplevel 2>/dev/null) || { echo 'VIBEPROOF REFUSED VP-CANT-CHECK: not inside a git repository' >&2; exit 3; }
+cd "$root" || exit 3
+[ -f "$root/.vibeproof/checks/lib.sh" ] || { echo 'VIBEPROOF REFUSED VP-CANT-CHECK: .vibeproof/checks/lib.sh is missing' >&2; exit 3; }
+. "$root/.vibeproof/checks/lib.sh"
+said=0
+say() { printf 'VIBEPROOF SESSION: %s\n' "$1"; said=1; }
+
+# 1. The installed harness and commit check still work. Rerun the self-test when they or the OS changed.
+sh .vibeproof/checks/guard check >/dev/null || exit 1
+identity=$(printf '%s\000' "$(git hash-object .vibeproof/fingerprints)" "$(uname -s)" | git hash-object --stdin) || exit 3
+cache=$(git rev-parse --git-path vibeproof-selftest) || exit 3
+if [ ! -f "$cache" ] || [ "$(cat "$cache")" != "$identity" ]; then
+  sh .vibeproof/checks/selftest >/dev/null || exit 1
+  printf '%s\n' "$identity" > "$cache" 2>/dev/null
+fi
+
+# 2. Sync with the person's repository, within one short network budget.
+deadline=$(($(date +%s) + 8))
+network() {
+  command -v timeout >/dev/null 2>&1 || return 125
+  left=$((deadline - $(date +%s)))
+  [ "$left" -gt 0 ] || return 124
+  GIT_TERMINAL_PROMPT=0 timeout -k 1 "$left" "$@"
+}
+online=0
+if git remote get-url origin >/dev/null 2>&1; then
+  if network sh -c '. .vibeproof/checks/lib.sh; vp_fetch'; then
+    online=1
+    if git rev-parse -q --verify origin/work >/dev/null; then
+      behind=$(git rev-list --count HEAD..origin/work)
+      ahead=$(git rev-list --count origin/work..HEAD)
+      if [ "$behind" -gt 0 ] && [ "$ahead" -gt 0 ]; then
+        say "diverged: $ahead commits here and $behind on the work branch differ. Merge them (git pull --no-rebase origin work), check the merged result, then push. Never force-push."
+        behind=0 ahead=0
+      fi
+      [ "$behind" -eq 0 ] || say "behind: $behind commits on the work branch are not here. Pull them (git pull --ff-only origin work) before any change."
+      [ "$ahead" -eq 0 ] || say "unpushed: $ahead commits here are not on the work branch. Push them (git push origin HEAD:work) if they are closed work."
+    fi
+    live=$(vp_live_branch) || exit 3
+    [ "$(git rev-parse --abbrev-ref HEAD)" != "$live" ] || say "on $live: work happens on the work branch; $live is the live site. Switch to work."
+  else
+    say 'offline: sync, the GitHub check and updates were not checked. Tell the person in one line.'
+  fi
+fi
+
+# 3. The GitHub check's verdict for the work branch.
+if [ "$online" -eq 1 ] && [ -f .github/workflows/vibeproof.yml ]; then
+  if network git fetch -q origin vibeproof-check 2>/dev/null; then
+    result=$(git show FETCH_HEAD:results/work.txt 2>/dev/null)
+    commit=$(printf '%s\n' "$result" | sed '/^$/,$d' | awk '$1 == "commit:" { print $2; exit }')
+    verdict=$(printf '%s\n' "$result" | sed '/^$/,$d' | awk '$1 == "verdict:" { print $2; exit }')
+    work=$(git rev-parse -q --verify origin/work)
+    if [ -z "$commit" ] || [ "$commit" != "$work" ]; then
+      say 'GitHub check has no result for the current work branch yet; no pass is assumed.'
+    elif [ "$verdict" != pass ]; then
+      say "GitHub check did not pass commit $(printf '%s' "$commit" | cut -c1-7) on the work branch (verdict: ${verdict:-missing}):"
+      printf '%s\n' "$result" | sed -n '/^$/,$p' | sed '1d; s/^/    /'
+      say 'tell the person in plain words and fix it in a new commit; never rewrite history.'
+    fi
+  else
+    say 'GitHub check was not read; no pass is assumed.'
+  fi
+fi
+
+# 4. Open changes and where each stands.
+for id in $(vp_open_changes); do
+  d=product/changes/$id
+  status=$(vp_status < "$d/brief.md" 2>/dev/null)
+  size=$(vp_line_value Size "$d/brief.md" | awk '{ print tolower($1) }')
+  if [ "$status" != agreed ]; then
+    say "open change $id: draft, not agreed. Continue it only when the person asks for it."
+  elif [ ! -f "$d/design.md" ]; then
+    say "open change $id: agreed, not designed. Continue with vibeproof-design."
+  elif [ "$size" = feature ] && ! grep -q '^## Review' "$d/design.md"; then
+    say "open change $id: design not reviewed yet. Continue with vibeproof-design."
+  elif [ -f "$d/report.md" ]; then
+    say "open change $id: report written. Continue with vibeproof-finish; check the chat for their acceptance."
+  else
+    say "open change $id: being built or shown. Continue with vibeproof-build from $d/log.md and the chat."
+  fi
+done
+
+# 5. The previous harness must not come back: its package reinstalls its skills.
+if [ -f .harness-version ] || grep -q '"@slip-pro/claude-ecosystem-shared"' package.json 2>/dev/null; then
+  say "previous harness: parts of the previous way of working are in this project. Remove them as in Vibeproof's install guide, section 1a."
+fi
+
+# 6. A Vibeproof update.
+src=$(awk '$1 == "source:" { print $2; exit }' .vibeproof/version 2>/dev/null)
+mine=$(awk '$1 == "commit:" { print $2; exit }' .vibeproof/version 2>/dev/null)
+if [ "$online" -eq 1 ] && [ -n "$src" ] && [ -n "$mine" ]; then
+  latest=$(network git ls-remote "$src" refs/heads/main 2>/dev/null | awk '{ print $1; exit }')
+  [ -z "$latest" ] || [ "$latest" = "$mine" ] || say 'update: a new Vibeproof version is available. Offer it in one line; update only after the current change is closed.'
+fi
+
+learning_hint=$(vp_learning_hint)
+[ -z "$learning_hint" ] || say "$learning_hint"
+[ "$said" -eq 1 ] || echo "VIBEPROOF SESSION: all clear"
+exit 0

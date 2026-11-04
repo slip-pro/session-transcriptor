@@ -1,0 +1,243 @@
+#!/bin/sh
+# Vibeproof commit check (BD-42). Run by .git/hooks/commit-msg on every commit, whichever agent
+# commits; $1 is the commit message file. `history` replays it on pushed commits. It reads what is
+# staged, not the working tree. Exit 0 lets the commit through; anything else stops it and prints
+# the reasons.
+
+root=$(git rev-parse --show-toplevel 2>/dev/null) || {
+  printf 'VIBEPROOF REFUSED VP-CANT-CHECK: not inside a git repository\n' >&2
+  exit 3
+}
+cd "$root" || exit 3
+[ -f "$root/.vibeproof/checks/lib.sh" ] || {
+  printf 'VIBEPROOF REFUSED VP-CANT-CHECK: .vibeproof/checks/lib.sh is missing\n' >&2
+  exit 3
+}
+. "$root/.vibeproof/checks/lib.sh"
+set -f  # file names are split on newlines below and must never be glob-expanded
+nl='
+'
+
+subject=
+[ -z "$1" ] || subject=$(sed -n '/^[[:space:]]*#/d; /[^[:space:]]/{p;q;}' "$1" 2>/dev/null)
+
+# Cherry-picks and rebases carry commits already judged on their own; history judges the results.
+gitdir=$(git rev-parse --git-dir) || vp_cant_check 'git could not find its directory'
+for state in CHERRY_PICK_HEAD rebase-merge rebase-apply; do
+  [ ! -e "$gitdir/$state" ] || exit 0
+done
+# A merge is judged only by its own edits: what differs from git's automatic merge of its parents,
+# such as a conflict resolution. `history` names the other parents with --merge.
+merge_parents=
+if [ "$2" = --merge ]; then
+  shift 2; merge_parents=$*
+elif [ -f "$gitdir/MERGE_HEAD" ]; then
+  merge_parents=$(cat "$gitdir/MERGE_HEAD") || vp_cant_check 'git could not read MERGE_HEAD'
+fi
+
+staged=$(vp_git diff --cached --name-only --no-renames) || vp_cant_check 'git could not list the staged files'
+[ -n "$staged" ] || exit 0
+for f in $staged; do vp_check_paths "$f"; done
+
+# Secrets are checked from the first commit on, including the one that installs Vibeproof.
+sh "$root/.vibeproof/checks/secrets" index > /dev/null || exit $?
+
+merging=0
+if [ -n "$merge_parents" ]; then
+  merging=1
+  tree=$(git write-tree) || vp_cant_check 'git could not read the merge result'
+  # git's own merge of the two parents (Git 2.38+) is the baseline; its conflicted files keep
+  # both sides' lines between conflict markers.
+  auto=
+  case "$merge_parents" in *[!0-9a-f]*) ;; *)
+    auto=$(git merge-tree --write-tree HEAD "$merge_parents" 2>/dev/null | head -n 1)
+    git rev-parse -q --verify "$auto^{tree}" >/dev/null 2>&1 || auto= ;;
+  esac
+  [ -n "$auto" ] || vp_cant_check 'this merge cannot be checked: it needs Git 2.38 or later and exactly two parents. Merge one branch at a time.'
+  staged=$(vp_git diff-tree -r --name-only --no-renames "$auto" "$tree") || vp_cant_check 'git could not compare the merge'
+  [ -n "$staged" ] || exit 0
+  for f in $staged; do vp_check_paths "$f"; done
+fi
+
+# Everything else applies once Vibeproof is installed in the parent commit.
+git cat-file -e HEAD:.vibeproof/version 2>/dev/null || exit 0
+updating=0
+printf '%s\n' "$staged" | grep -Fqx .vibeproof/version && updating=1
+
+head_text() { git show "HEAD:$1" 2>/dev/null; }
+index_text() { git show ":$1" 2>/dev/null; }
+
+# --- Harness files change only with an install or update (VP-GUARD) -------------------------
+if [ "$updating" -eq 0 ]; then
+  guarded=$(printf '%s\n' "$staged" | grep -E '^(\.vibeproof/checks/|\.vibeproof/installed-files$|\.vibeproof/fingerprints$|\.github/workflows/vibeproof\.yml$|\.agents/skills/vibeproof-|\.claude/skills/vibeproof-|\.claude/agents/vibeproof-|\.codex/agents/vibeproof-)')
+  [ -z "$guarded" ] || vp_refuse VP-GUARD "Vibeproof's own files were changed outside an install or update:$nl$guarded${nl}They are never edited by hand or for one project."
+fi
+
+# --- Guarded settings need a new guard-ok line in the same commit (VP-GUARD-SETTING) -----------
+if [ "$updating" -eq 0 ]; then
+  ok_before=$(head_text product/settings.md | vp_setting_paths guard-ok)
+  ok_now=$(index_text product/settings.md | vp_setting_paths guard-ok)
+  for f in $staged; do
+    vp_project_guarded "$f" || continue
+    if printf '%s\n' "$ok_now" | grep -Fqx -- "$f" && ! printf '%s\n' "$ok_before" | grep -Fqx -- "$f"; then
+      continue
+    fi
+    vp_refuse VP-GUARD-SETTING "$f changes check, agent or dependency settings. Explain the effect to the person; with their agreement add 'guard-ok: $f — <effect> — \"<their words>\"' to product/settings.md in the same commit."
+  done
+fi
+
+# --- Briefs: agreement is recorded, and an agreed brief changes only by revising it -----------
+agreed=""   # open changes agreed in the parent commit
+ready=""    # of those, with the design the build needs
+# In a merge only the briefs it edits itself; its sides were judged on their own.
+for id in $(if [ "$merging" -eq 1 ]; then printf '%s\n' "$staged" | awk -F/ '$1 == "product" && $2 == "changes" && $3 != "closed" && $4 == "brief.md" { print $3 }'; else vp_open_changes; fi); do
+  brief="product/changes/$id/brief.md"
+  now=$(index_text "$brief") || continue
+  if [ "$merging" -eq 1 ]; then before=$(git show "$auto:$brief" 2>/dev/null) || before=; else before=$(head_text "$brief") || before=; fi
+  status_now=$(printf '%s\n' "$now" | vp_status)
+  status_before=$(printf '%s\n' "$before" | vp_status)
+  # In a merge a brief agreed on either side counts as agreed.
+  for p in $merge_parents; do
+    [ "$(git show "$p:$brief" 2>/dev/null | vp_status)" != agreed ] || status_before=agreed
+  done
+  [ "$merging" -eq 0 ] || [ "$(head_text "$brief" | vp_status)" != agreed ] || status_before=agreed
+  if [ "$status_now" = agreed ] && [ -z "$(printf '%s\n' "$now" | vp_field Agreed)" ]; then
+    vp_refuse VP-AGREEMENT "$brief says 'Status: agreed' without an 'Agreed: <date> — \"<their words>\"' line."
+  fi
+  if [ "$status_before" = agreed ] && [ "$now" != "$before" ]; then
+    if [ "$status_now" != draft ] || [ -z "$(printf '%s\n' "$now" | vp_field Revised)" ]; then
+      vp_refuse VP-BRIEF-EDIT "the agreed brief of $id was edited. To change what was agreed, set 'Status: draft' and add 'Revised: <what and why>' in one commit, then agree again."
+    fi
+  fi
+  [ "$status_before" = agreed ] || continue
+  agreed="$agreed $id"
+  size=$(printf '%s\n' "$before" | vp_field Size | awk '{ print tolower($1) }')
+  design=$(head_text "product/changes/$id/design.md") || design=
+  if [ "$size" = feature ]; then
+    printf '%s\n' "$design" | grep -q '^## Review' && ready="$ready $id"
+  elif [ -n "$design" ]; then
+    ready="$ready $id"
+  fi
+done
+
+# --- Code needs an agreed, designed change, a tiny fix or a restore (VP-AGREEMENT, VP-DESIGN) ---
+# The committed list is trusted. A staged entry counts only for Vibeproof's own paths
+# (vp_harness_path), so an update cannot turn a code file into a "harness" file by listing it.
+installed="$(head_text .vibeproof/installed-files)$nl$(index_text .vibeproof/installed-files |
+  while IFS= read -r f; do if vp_harness_path "$f"; then printf '%s\n' "$f"; fi; done)"
+code=""
+for f in $([ "$merging" -eq 1 ] || printf '%s\n' "$staged"); do
+  case "$f" in product/*|.vibeproof/*) continue ;; esac
+  printf '%s\n' "$installed" | grep -Fqx -- "$f" && continue
+  code="$code$f$nl"
+done
+# A restore or revert may change code without agreement, but only back to the exact code of the
+# commit it names: "restore: <commit> ..." or git's own "This reverts commit <commit>." line.
+restores_to() {
+  printf '%s' "$code" | while IFS= read -r f; do
+    [ -n "$f" ] || continue
+    then_hash=$(git rev-parse -q --verify "$1:$f" 2>/dev/null)
+    [ "$(vp_index_hash "$f")" = "$then_hash" ] || echo "$f"
+  done
+}
+if [ -n "$code" ] && [ -z "$ready" ]; then
+  case "$subject" in
+    restore:*|'Revert "'*)
+      case "$subject" in
+        restore:*) to=$(printf '%s\n' "$subject" | awk '{ print $2 }') ;;
+        *) to=$(sed -n 's/^This reverts commit \([0-9a-f]\{7,64\}\)\.*$/\1/p' "$1" | head -n 1); [ -z "$to" ] || to="$to^" ;;
+      esac
+      # Only a plain commit id from this branch's own history, never a revision expression.
+      case "${to%^}" in ''|*[!0-9a-f]*) to= ;; esac
+      [ -z "$to" ] || to=$(git rev-parse -q --verify "$to^{commit}" 2>/dev/null)
+      [ -z "$to" ] || git merge-base --is-ancestor "$to" HEAD 2>/dev/null || to=
+      if [ -z "$to" ]; then
+        vp_refuse VP-AGREEMENT "a restore must name the commit it puts back ('restore: <commit> …', or git revert's 'This reverts commit <commit>.')."
+      else
+        differ=$(restores_to "$to")
+        [ -z "$differ" ] || vp_refuse VP-AGREEMENT "this restore changes code to something other than $(git rev-parse --short "$to"): $(printf '%s' "$differ" | tr '\n' ' ')"
+      fi
+      ;;
+    tiny:*)
+      added=$(vp_git diff --cached --name-only --no-renames --diff-filter=A)
+      new=$(printf '%s' "$code" | while IFS= read -r f; do printf '%s\n' "$added" | grep -Fqx -- "$f" && echo "$f"; done)
+      [ -z "$new" ] || vp_refuse VP-AGREEMENT "a tiny fix adds no files: $(printf '%s' "$new" | tr '\n' ' ')— this is a change; agree it with the person first."
+      ;;
+    *)
+      if [ -n "$agreed" ]; then
+        vp_refuse VP-DESIGN "code for$agreed before its design: commit design.md first (for a feature, with its '## Review')."
+      else
+        vp_refuse VP-AGREEMENT "code changed with no agreed change. Agree it with the person first, or, for a typo-level edit with no behaviour change and no new file, start the message with 'tiny:'."
+      fi
+      ;;
+  esac
+fi
+
+# --- Agreed scenarios and their tests change only through an agreed revision ------------------
+reopened=""
+own_tests=""
+allow() {
+  reopened="$reopened$(printf '%s\n' "$1" | vp_brief_reopens)$nl"
+  # While open, a change may still reword the scenarios it adds.
+  reopened="$reopened$(printf '%s\n' "$1" | awk '/^- add S-[A-Za-z0-9-]+-[0-9]+:/ { s = $3; sub(/:$/, "", s); print s }')$nl"
+  own_tests="$own_tests$(printf '%s\n' "$1" | vp_scenario_tests | awk '$2 != "-" { print substr($0, index($0, " ") + 1) }')$nl"
+}
+for id in $agreed; do allow "$(head_text "product/changes/$id/brief.md")"; done
+# A merge's own edits may use an agreed open change from any of its parents.
+if [ "$merging" -eq 1 ]; then
+  for p in HEAD $merge_parents; do
+    for id in $(git ls-tree -d --name-only "$p" product/changes/ 2>/dev/null | awk -F/ '$3 != "closed" { print $3 }'); do
+      b=$(git show "$p:product/changes/$id/brief.md" 2>/dev/null) || continue
+      [ "$(printf '%s\n' "$b" | vp_status)" != agreed ] || allow "$b"
+    done
+  done
+fi
+protected=$(for p in HEAD $merge_parents; do
+  git ls-tree -r --name-only "$p" -- product/capabilities/ 2>/dev/null | while IFS= read -r cap; do
+    git show "$p:$cap" 2>/dev/null | vp_scenario_tests
+  done
+done)
+
+if [ "$merging" -eq 1 ]; then
+  changed=$(vp_git diff-tree -r --name-only --no-renames "$auto" "$tree")
+else
+  changed=$(vp_git diff --cached --name-only --no-renames --diff-filter=MDT)
+fi
+for f in $changed; do
+  ids=$(printf '%s\n' "$protected" | awk -v p="$f" 'substr($0, index($0, " ") + 1) == p { print $1 }')
+  [ -n "$ids" ] || continue
+  printf '%s\n' "$own_tests" | grep -Fqx -- "$f" && continue
+  ok=0
+  for sid in $ids; do printf '%s\n' "$reopened" | grep -Fqx -- "$sid" && ok=1; done
+  [ "$ok" -eq 1 ] || vp_refuse VP-TEST-EDIT "$f tests agreed scenario(s) $(printf '%s' "$ids" | tr '\n' ' ')and no agreed change revises them. Change an agreed test only through a change that revises its scenario."
+done
+
+for cap in $(printf '%s\n' "$staged" | grep '^product/capabilities/.*\.md$'); do
+  if [ "$merging" -eq 1 ]; then base_text=$(git show "$auto:$cap" 2>/dev/null); else base_text=$(head_text "$cap"); fi
+  old_lines=$(printf '%s\n' "$base_text" | grep -E '^- S-[A-Za-z0-9-]+-[0-9]+:')
+  new_lines=$(index_text "$cap" | grep -E '^- S-[A-Za-z0-9-]+-[0-9]+:')
+  printf '%s\n' "$old_lines" | while IFS= read -r line; do
+    [ -n "$line" ] || continue
+    printf '%s\n' "$new_lines" | grep -Fqx -- "$line" && continue
+    sid=$(printf '%s\n' "$line" | awk '{ id = $2; sub(/:$/, "", id); print id }')
+    printf '%s\n' "$reopened" | grep -Fqx -- "$sid" && continue
+    printf 'VIBEPROOF REFUSED VP-SCENARIO-EDIT: agreed scenario %s in %s was changed or removed, and no agreed change revises it.\n' "$sid" "$cap" >&2
+    echo refused
+  done | grep -q refused && VP_REFUSED=1
+done
+
+# --- A change is closed only by the close script (VP-CLOSE-SKIPPED) ---------------------------
+if [ "$merging" -eq 1 ]; then
+  closing=$(vp_git diff-tree -r --name-only --no-renames --diff-filter=A "$auto" "$tree" -- product/changes/closed/)
+else
+  closing=$(vp_git diff --cached --name-only --no-renames --diff-filter=A -- product/changes/closed/)
+fi
+for id in $(printf '%s\n' "$closing" | awk -F/ 'NF >= 5 { print $4 }' | sort -u); do
+  [ "$subject" = "close $id" ] || vp_refuse VP-CLOSE-SKIPPED "$id is being moved to closed/ by hand. Close a change only with: sh .vibeproof/checks/close $id"
+done
+
+if [ "$VP_REFUSED" -ne 0 ]; then
+  [ "$merging" -eq 0 ] || printf 'In a merge only its own edits are checked. Keep one side'"'"'s version of these files in the merge and make the edit in an ordinary commit after it.\n' >&2
+  exit 1
+fi
+exit 0

@@ -1,0 +1,89 @@
+#!/bin/sh
+# Close an accepted change (BD-42). Usage: close <change-id>
+# Moves product/changes/<id> to product/changes/closed/<id>, adds the report's changelog line to
+# product/changelog.md, commits only those paths and pushes to the work branch. On a refusal it
+# undoes only its own edits; nothing else in the working tree is touched. Run it again after an
+# interruption: a move left uncommitted is put back first.
+
+root=$(git rev-parse --show-toplevel 2>/dev/null) || { echo 'VIBEPROOF REFUSED VP-CANT-CHECK: not inside a git repository' >&2; exit 3; }
+cd "$root" || exit 3
+. "$root/.vibeproof/checks/lib.sh"
+stop() { vp_refuse VP-CLOSE "$1"; exit 1; }
+
+id=$1
+case "$id" in C-[0-9]*) ;; *) echo 'usage: close C-<n>' >&2; exit 2 ;; esac
+case "$id" in *[!A-Za-z0-9-]*) echo 'usage: close C-<n>' >&2; exit 2 ;; esac
+d=product/changes/$id
+c=product/changes/closed/$id
+log=product/changelog.md
+
+# A close interrupted after its move and before its commit: put the change back and start again.
+if [ ! -e "$d" ] && [ -f "$c/brief.md" ] && git cat-file -e "HEAD:$d/brief.md" 2>/dev/null &&
+  ! git cat-file -e "HEAD:$c/brief.md" 2>/dev/null; then
+  git reset -q -- "$d" "$c" "$log" 2>/dev/null
+  mv "$c" "$d" || vp_cant_check "cannot move $c back to $d"
+  if [ -f "$log" ]; then
+    awk -v id="$id:" '!($1 == "-" && $3 == id)' "$log" > "$log.vp" && mv "$log.vp" "$log" || vp_cant_check "cannot clean $log"
+    git cat-file -e "HEAD:$log" 2>/dev/null || [ -n "$(grep -v -e '^# Changelog$' -e '^$' "$log")" ] || rm -f "$log"
+  fi
+  echo "an earlier close $id stopped before its commit; its move was put back"
+fi
+
+[ -f "$d/brief.md" ] || stop "$d/brief.md does not exist"
+[ ! -e "$c" ] || stop "$c already exists"
+
+# Close takes only committed work, so the commit holds exactly what was checked.
+vp_git diff --cached --quiet || stop 'something is staged; commit it or unstage it before closing'
+[ -z "$(git status --porcelain -- "$d")" ] || stop "$d has uncommitted edits; commit them first"
+[ "$(git show "HEAD:$d/brief.md" 2>/dev/null | vp_status)" = agreed ] || stop "$id is not agreed"
+[ -f "$d/report.md" ] || stop "$d/report.md is missing; write the report first (vibeproof-finish §4)"
+line=$(vp_line_value changelog "$d/report.md")
+[ -n "$line" ] || stop "$d/report.md has no 'changelog: <one line>'"
+
+# The agreed scenarios must already be in product memory.
+caps=$(git ls-tree -r --name-only HEAD -- product/capabilities/ | while IFS= read -r f; do git show "HEAD:$f" | vp_scenario_tests; done)
+missing=""
+for sid in $(awk '{ sub(/\r$/, "") } /^- (add|change) S-[A-Za-z0-9-]+-[0-9]+:/ { s = $3; sub(/:$/, "", s); print s }' "$d/brief.md"); do
+  printf '%s\n' "$caps" | awk -v s="$sid" '$1 == s { f = 1 } END { exit !f }' || missing="$missing $sid"
+done
+for sid in $(awk '{ sub(/\r$/, "") } /^- remove S-[A-Za-z0-9-]+-[0-9]+:/ { s = $3; sub(/:$/, "", s); print s }' "$d/brief.md"); do
+  printf '%s\n' "$caps" | awk -v s="$sid" '$1 == s { f = 1 } END { exit !f }' && missing="$missing $sid(still present)"
+done
+[ -z "$missing" ] || stop "product/capabilities/ does not reflect the brief:$missing. Update it and commit first (vibeproof-finish §1)"
+
+backup=$(mktemp) || vp_cant_check 'no temporary file'
+had_log=0
+[ -f "$log" ] && { cp "$log" "$backup" || vp_cant_check "cannot back up $log"; had_log=1; }
+undo() {
+  git reset -q -- "$d" "$c" "$log" 2>/dev/null
+  [ ! -d "$c" ] || mv "$c" "$d"
+  if [ "$had_log" -eq 1 ]; then cp "$backup" "$log"; else rm -f "$log"; fi
+  rm -f "$backup"
+}
+
+entry="- $(date -u +%Y-%m-%d) $id: $line"
+if [ "$had_log" -eq 1 ]; then
+  awk -v e="$entry" 'NR == 1 && /^# / { print; print ""; print e; done = 1; next } NR == 1 { print e } { print }' "$backup" > "$log" || { undo; vp_cant_check "cannot write $log"; }
+else
+  printf '# Changelog\n\n%s\n' "$entry" > "$log" || { undo; vp_cant_check "cannot write $log"; }
+fi
+mkdir -p product/changes/closed && git mv "$d" "$c" && git add -- "$log" || { undo; vp_cant_check 'git could not stage the close'; }
+if ! git commit -q -m "close $id" -- "$d" "$c" "$log"; then
+  undo
+  stop "the close commit was refused; see the lines above. Nothing else was changed: fix the cause and run close $id again"
+fi
+rm -f "$backup"
+echo "closed $id"
+
+if git remote get-url origin >/dev/null 2>&1; then
+  if git push -q origin HEAD:work; then
+    echo "saved to the work branch; not live"
+  else
+    echo "VIBEPROOF CLOSE: closed locally, but the push to work failed. Run: git push origin HEAD:work" >&2
+    vp_learning_hint
+    exit 4
+  fi
+else
+  echo "closed locally; there is no remote to push to"
+fi
+vp_learning_hint

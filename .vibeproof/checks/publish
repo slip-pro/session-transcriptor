@@ -1,0 +1,77 @@
+#!/bin/sh
+# Branch-route publishing helper (BD-42). The project's own procedure always comes first.
+# Usage:
+#   publish diff            what would go live: closed changes between the live branch and work
+#   publish go <commit>     fast-forward the live branch to <commit>, which must be on work
+#   publish back <commit>   put the code of an earlier live <commit> back with a new restore commit
+# Never force-pushes. Waiting for the host and looking at the live site is the agent's job.
+
+root=$(git rev-parse --show-toplevel 2>/dev/null) || { echo 'VIBEPROOF REFUSED VP-CANT-CHECK: not inside a git repository' >&2; exit 3; }
+cd "$root" || exit 3
+. "$root/.vibeproof/checks/lib.sh"
+stop() { vp_refuse VP-PUBLISH "$1"; exit 1; }
+
+live=$(vp_live_branch) || exit 3
+vp_fetch || stop 'cannot reach the remote; nothing was published'
+live_tip=$(git rev-parse -q --verify "refs/remotes/origin/$live") || live_tip=
+work_tip=$(git rev-parse -q --verify refs/remotes/origin/work) || stop 'the work branch is not on the remote; push it first'
+
+case "$1" in
+diff)
+  open=$(for id in $(vp_open_changes); do
+    [ "$(vp_status < "product/changes/$id/brief.md" 2>/dev/null)" != agreed ] || echo "$id"
+  done)
+  [ -z "$open" ] || echo "agreed changes still open (they can't go live): $(printf '%s' "$open" | tr '\n' ' ')"
+  [ "$(git rev-parse HEAD)" = "$work_tip" ] || echo 'this checkout differs from the work branch on the remote; push or pull first'
+  if [ -n "$live_tip" ]; then
+    git merge-base --is-ancestor "$live_tip" "$work_tip" || stop "the live branch has commits the work branch doesn't; this needs a person to look at it"
+    range="$live_tip..$work_tip"
+  else
+    range=$work_tip
+  fi
+  echo "live: ${live_tip:-none}   work: $work_tip"
+  echo 'closed changes not yet live:'
+  git log --format='%s' "$range" | awk '/^close C-[0-9]+$/ { print "  " $2; n++ } END { if (!n) print "  none" }'
+  echo 'commits not yet live:'
+  git log --format='  %h %s' "$range"
+  ;;
+go)
+  target=$(git rev-parse -q --verify "$2^{commit}") || stop 'name the exact commit to publish'
+  git merge-base --is-ancestor "$target" "$work_tip" || stop 'that commit is not on the work branch'
+  # Drafts carry no code, so only an agreed change that is still open blocks publishing.
+  for d in $(git ls-tree -d --name-only "$target" product/changes/ | grep -v '^product/changes/closed$'); do
+    [ "$(git show "$target:$d/brief.md" 2>/dev/null | vp_status)" != agreed ] ||
+      stop "that commit has an agreed change still open (${d#product/changes/}); only closed changes go live"
+  done
+  if [ -n "$live_tip" ]; then
+    git merge-base --is-ancestor "$live_tip" "$target" || stop "the live branch has commits that commit doesn't; this needs a person to look at it"
+  fi
+  base=${live_tip:-$(git rev-list --max-parents=0 "$target" | tail -n 1)}
+  paths=$(vp_git diff --name-only --no-renames "$base" "$target") || vp_cant_check 'cannot list the release paths'
+  case "$paths" in \"*|*"
+\""*) stop 'the release has file names git had to quote; check it by hand' ;; esac
+  migrations=$(printf '%s\n' "$paths" | grep -E '(^|/)(migrations?|supabase/migrations)/|\.sql$|(^|/)schema\.prisma$')
+  [ -z "$migrations" ] || stop "the release changes the database ($(printf '%s' "$migrations" | tr '\n' ' ')); follow the project's own procedure for it, this helper doesn't apply migrations"
+  if [ -f .github/workflows/vibeproof.yml ]; then
+    git fetch -q origin vibeproof-check 2>/dev/null || stop "the GitHub check hasn't reported yet; wait and try again"
+    result=$(git show FETCH_HEAD:results/work.txt 2>/dev/null | sed '/^$/,$d')
+    [ "$(printf '%s\n' "$result" | awk '$1 == "commit:" && NF == 2 { print $2 }')" = "$(git rev-parse "$target")" ] ||
+      stop "the GitHub check hasn't reported on this exact commit; wait and try again"
+    [ "$(printf '%s\n' "$result" | awk '$1 == "verdict:" && NF == 2 { print $2 }')" = pass ] ||
+      stop "the GitHub check did not pass this commit; fix that first"
+  fi
+  git push -q origin "$target:refs/heads/$live" || stop "the push to $live was refused; nothing was published"
+  echo "pushed $(git rev-parse --short "$target") to $live; now open the live site and check it"
+  ;;
+back)
+  [ -n "$live_tip" ] || stop 'there is no live branch to restore'
+  target=$(git rev-parse -q --verify "$2^{commit}") || stop 'name the earlier live commit to put back'
+  git merge-base --is-ancestor "$target" "$live_tip" || stop 'that commit was never on the live branch'
+  restore=$(git commit-tree "$target^{tree}" -p "$live_tip" -m "restore: $(git rev-parse "$target") put back on $live") ||
+    vp_cant_check 'could not build the restore commit'
+  git push -q origin "$restore:refs/heads/$live" || stop "the push to $live was refused; the live branch is unchanged"
+  echo "restored the code of $(git rev-parse --short "$target") on $live as $(git rev-parse --short "$restore")."
+  echo "Data is not restored. Bring the restore into work with: git pull --no-rebase origin $live"
+  ;;
+*) sed -n '2,7p' "$0" | sed 's/^# \{0,1\}//' >&2; exit 2 ;;
+esac
