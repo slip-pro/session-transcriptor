@@ -25,3 +25,6 @@ This is the required evidence checklist, not a passing report. Fill observed out
 | Visual | Client/result/reader/notes/selection | Actual app desktop320/390 screenshots reviewed against accepted mockup |
 
 No live provider, production data, paid retry, physical phone or publication is authorized by these fixtures. Save/recovery controls in the application are real; mockup simulation panel must not be copied.
+
+## Verified outcome
+All mandatory synthetic scenarios above completed; details, commands, independent reviews, paths and limits are recorded in transfer-report.md. Full suite74pass/1pre-existing-real-fixture-skip/0fail; TypeScript/lint/build and all listed browser flows exit0. The matrix is no longer pending. Real provider/paid action/physical phone remain untested and outside this isolated transfer.
