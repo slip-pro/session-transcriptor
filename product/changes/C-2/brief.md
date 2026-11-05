@@ -1,7 +1,8 @@
 # C-2: Понятный следующий шаг во всём продукте
-Status: agreed
+Status: draft
 Agreed: 2026-11-04 — «Да, делаем. Переделывай весь продукт по этому принципу, чтобы человек без объяснений понимал, что делать дальше.»
-Size: feature — existing workflows redesigned; no new backend/recipient.
+Revised: transfer the accepted mockup into the real app and prove reload/server persistence; add separate optional meeting minutes without changing transcript duration.
+Size: feature — existing workflows redesigned; additive persisted meeting minutes, no new recipient.
 Why: an inexperienced coach uploads a recording, obtains Word, returns to a meeting and leaves a note without instruction.
 Today: competing forms and technical choices throughout the product.
 After: document-first journey with one main action per state and optional contextual tools.
@@ -17,3 +18,7 @@ Scenarios:
 - S-simple-8: processing/error/empty states provide a next step without false completion.
 - S-simple-9: desktop, 390/320px, keyboard, durable edits and reload work.
 Won't do: publication, AI analysis, migration, new authentication or external services.
+
+## Accepted transfer — 2026-11-05
+Owner: «Окей, переноси в приложение. Только сохрани весь функционал и проверь, что правки действительно сохраняются после перезагрузки.» Latest standalone client/history and full meeting mockup accepted. Earlier report acceptance did not cover this transfer. Transfer accepted UX to actual React/API app, retain all C1/C2 capabilities and verify server persistence after reload plus independent context read. No deployment/ASR/live data. Optional meeting minutes distinct from transcript fragment duration included.
+
