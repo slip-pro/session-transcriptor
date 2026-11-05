@@ -1,6 +1,6 @@
 # C-2: Понятный следующий шаг во всём продукте
-Status: draft
-Agreed: 2026-11-04 — «Да, делаем. Переделывай весь продукт по этому принципу, чтобы человек без объяснений понимал, что делать дальше.»
+Status: agreed
+Agreed: 2026-11-05 — «Окей, переноси в приложение. Только сохрани весь функционал и проверь, что правки действительно сохраняются после перезагрузки.»
 Revised: transfer the accepted mockup into the real app and prove reload/server persistence; add separate optional meeting minutes without changing transcript duration.
 Size: feature — existing workflows redesigned; additive persisted meeting minutes, no new recipient.
 Why: an inexperienced coach uploads a recording, obtains Word, returns to a meeting and leaves a note without instruction.
@@ -21,4 +21,5 @@ Won't do: publication, AI analysis, migration, new authentication or external se
 
 ## Accepted transfer — 2026-11-05
 Owner: «Окей, переноси в приложение. Только сохрани весь функционал и проверь, что правки действительно сохраняются после перезагрузки.» Latest standalone client/history and full meeting mockup accepted. Earlier report acceptance did not cover this transfer. Transfer accepted UX to actual React/API app, retain all C1/C2 capabilities and verify server persistence after reload plus independent context read. No deployment/ASR/live data. Optional meeting minutes distinct from transcript fragment duration included.
+
 
