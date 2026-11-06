@@ -25,3 +25,7 @@ Chrome checks: Node tests/cabinet-c2-smoke.cjs and tests/cabinet-c2-journey.cjs 
 
 ## C-3 notes (2026-11-06)
 Use Node 24.22.1 (`C:/Users/user/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/bin/node.exe`) for `npm test`: Node 24.22.0 from fnm lacks `stmt.columns` and 3 auth tests fail. Login on the preview rate-limits (429) after several quick logins — wait ~70 s between browser scripts. C-3 browser checks: tests/cabinet-c3-{home,roles,listen,visual}.cjs.
+
+## C-5 notes (2026-11-06)
+In Git Bash put Node 24.22.1 on PATH in `/c/Users/user/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/bin` form; the `C:/...` form leaves Node 22 first. Restart the 3104 preview by stopping only the helper's process tree (`node --import tsx scripts/cabinet-c2-demo.ts` → `next dev … --port 3104`; `taskkill /PID <helper> /T /F`), never `taskkill /IM node.exe` (it stops every Node process, incl. the 3100 preview). After a restart the browser session is lost — sign in again. C-5 browser check: tests/cabinet-c5-clients.cjs [list|client-page|reading]. `npm run lint` also scans preview artifacts under `.local/cabinet-c2-demo/site/.next-c2`.
+
