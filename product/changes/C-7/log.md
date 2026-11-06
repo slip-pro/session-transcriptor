@@ -13,3 +13,13 @@
 - Popover z-index 20 (selection bar is 3). Role select is a plain select in a span; old `.cc-reader-speaker` rules no longer apply; client chair carries the client's initial as in seats. `.cc-reading-row` is now block (head + text). Cost if wrong: visual only.
 - c6-meeting run 1 had one `net::ERR_ABORTED` on page.goto (dev-server hiccup), run 2 all green — flaky navigation, no fix applied.
 - Evidence: .git/vibeproof-logs/c7-s2-*.log
+
+## Final checks and review fixes
+- Slice 3 visual checks added to c3-visual (focus, contrast, ≥13px for the new meeting controls; notes screen at 1280/390/320).
+- Implementation review (fresh vibeproof-reviewer): 0 blockers, 1 major, 4 minors. Fixed, each with a test seen failing first:
+  - M1 phone: long bookmark quote had no «ещё» (measured while notes tab hidden) → ResizeObserver; c7 › notes phone step (red: «phone: no «ещё»», green after).
+  - m2 notes column clipped focus rings (padding 0 under overflow:auto) → padding 0 6px ≥1001px; c7 › notes padding check.
+  - m3 focus lost after a menu choice → focus returns to the icon; c7 › bookmark-icon check.
+  - m4 phone icon only checked for size → c7 › bookmark-icon now taps «В закладки» on a phone and sees the bookmark in notes.
+  - m5 audio.tsx whole-file diff from CRLF → restored LF.
+- Concurrent C-8 (home screen) changed workspace.tsx/home during the final run: c2-journey, c2-slice1 and c3-visual's «free seat» focus step fail on home/clients strings C-8 removed. Not C-7 code; left to C-8.

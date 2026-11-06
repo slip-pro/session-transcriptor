@@ -31,4 +31,4 @@ In Git Bash put Node 24.22.1 on PATH in `/c/Users/user/.cache/codex-runtimes/cod
 
 
 ## C-7 notes (2026-11-06)
-Preview 3104 serves a copy at `.local/cabinet-c2-preview`; after source edits in `.local/web` run `cp -r app/. ../cabinet-c2-preview/app/` from `.local/web` (next dev hot-reloads, no restart, no re-login). `diff -rq app ../cabinet-c2-preview/app` empty = in sync. Readiness: `node tests/cabinet-c6-meeting.cjs page` prints `ok page`. Rollback copies for C-7: `.local/c7-before/`.
+Open the preview as http://localhost:3104 (127.0.0.1 fails sign-in). Preview 3104 serves a copy at `.local/cabinet-c2-preview`; after source edits in `.local/web` run `cp -r app/. ../cabinet-c2-preview/app/` from `.local/web` (next dev hot-reloads, no restart, no re-login). `diff -rq app ../cabinet-c2-preview/app` empty = in sync. Readiness: `node tests/cabinet-c6-meeting.cjs page` prints `ok page`. Rollback copies for C-7: `.local/c7-before/`.
