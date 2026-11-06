@@ -24,3 +24,11 @@
 - `next build` not run: operations.md gives no cheap isolated build, and a build in `.local/web` could overwrite output used by the 3100 preview; typecheck is green.
 - Screenshots in `.git/vibeproof-logs/`: c6-shot-ready-1280, c6-shot-ready-390 (viewport only), c6-shot-ready-800, c6-shot-roles-1280, c6-shot-roles-800; viewed, no layout breakage found.
 - Coordinator: on phones (≤760px) the h2 «Разговор» is hidden because the tab of the same name sits right under it (same pattern as the hidden notes h2); c6, c3-visual, c5 rerun green; cost: one CSS line.
+
+## Implementation review
+- Fresh vibeproof-reviewer 2026-11-06: 0 blockers, 0 majors, 4 minors.
+- m1 (re-opening the same source doesn't re-scroll; same as before C-6) → queued, not fixed: pre-existing, harmless (audio still seeks), retry by scrolling.
+- m2 (no test for row resume via old `mode=read` links) → queued.
+- m3 correction: `c2-metadata-red.cjs` returns at l.12, so its l.13+ edits are dead code and unverified; `c2-slice2.cjs:49` `mode===null` is weak — removal of `mode` is covered by c5 › reading and c6 › source link.
+- m4: «Сохранено» sits under the meta line, not on it; owner saw it at the showing and accepted («Подходит»).
+- Correction to slice 1: the audio player was not sticky before C-6 either (sticky rule targets `.cc-conversation .cc-audio`); nothing lost.
