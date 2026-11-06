@@ -16,3 +16,5 @@
 - Mistake: I ran `taskkill /IM node.exe` once to stop the preview, which stopped every node process on the machine, not only the helper. Preview restarted; nothing else was changed.
 - lint: errors now also come from preview build artifacts under `.local/cabinet-c2-demo/site/.next-c2` (12); outside them 38, all in .cjs scripts.
 - Visual script found the reminder field (InlineText, C-2) had no visible keyboard outline (border colour only). Added `.cc-app .cc-inline-text:focus-visible{outline:3px solid ink}` — applies to every inline text field in the cabinet (note, reminder, digest). Cost if unwanted: one line.
+- Показ 2026-11-06: «Перед встречей» шумно → убрана подсказка «Заметки можно менять прямо здесь», «Сохранено» в строку заголовка; «Сохранено» встречи из отдельной строки в строку даты · клиента. Тест сначала красный (c5-fix-red.log). Цена ошибки: косметика.
+- «Чтение встречи сыро» — переделка страницы встречи по экрану 6 вынесена в C-6 (владелец: «так»).
