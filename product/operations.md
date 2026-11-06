@@ -22,3 +22,6 @@ Run from `.local/web` with installed Node 24.22.1:
 `C:/Users/user/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/bin/node.exe --import tsx scripts/cabinet-c2-demo.ts`
 The helper seeds only `.local/web/.local/cabinet-c2-demo`, copies app/lib/public into sibling `.local/cabinet-c2-preview` with its own build output, binds loopback3104 and starts no worker. Existing preview3100 and data stay untouched. Readiness: GET /cabinet, sign in synthetic coach@example.test / Local-demo-coach-2026, heading «Запись встречи → Word». Refresh copied app after source edits or restart this helper. Stop only the process started by this helper after owner review.
 Chrome checks: Node tests/cabinet-c2-smoke.cjs and tests/cabinet-c2-journey.cjs from `.local/web`; existing installed Chrome and bundled Playwright, no installs. Output/screenshots in root `.git/vibeproof-logs/c2-*`.
+
+## C-3 notes (2026-11-06)
+Use Node 24.22.1 (`C:/Users/user/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/bin/node.exe`) for `npm test`: Node 24.22.0 from fnm lacks `stmt.columns` and 3 auth tests fail. Login on the preview rate-limits (429) after several quick logins — wait ~70 s between browser scripts. C-3 browser checks: tests/cabinet-c3-{home,roles,listen,visual}.cjs.

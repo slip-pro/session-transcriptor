@@ -24,3 +24,7 @@
 - «Послушать отрывок» now covered by `tests/cabinet-c3-listen.cjs` (tone attached through the audio PUT API): play, label «Пауза», other seat pauses, second click pauses.
 - C-2 scripts adjusted for removed/renamed UI only: smoke (note button label), metadata-screenshots (click on footer instead of the removed hint), audio-source (attaches audio first, since seat previews now render only with audio). Assertions unchanged.
 - Visual contrast check treats all text as normal (4.5) and ignores text over background images/gradients (none found in sampled screens).
+- Review fix 1: focus ring inside the dark «Документ готов» card is now light #F8E3A3 (room.css); visual check extended to Tab onto «Скачать Word» and «Читать и слушать», contrast >=3:1 (was 2.66, red before, green after).
+- Review fix 2: «Скачать Word» shows on phone home rows under the text (removed display:none at <=760px); c3-home asserts it is visible, >=44px, inside 390px (red before, green after).
+- Review fix 3: new pure helper rowAction(summary) in processing.tsx used by workspace.tsx and history-notes.tsx; Word offered whenever text and complete roles exist, even after a failed run; unit test in cabinet-ux.test.ts (red: not a function, green 6/6).
+- Finish: follow-up review of fixes clean; added unit case failed+text+no roles → «Подсказать» (cabinet-ux 6/6).
