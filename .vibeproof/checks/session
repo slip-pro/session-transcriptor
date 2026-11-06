@@ -29,37 +29,47 @@ network() {
   GIT_TERMINAL_PROMPT=0 timeout -k 1 "$left" "$@"
 }
 online=0
+live=$(vp_live_branch) || exit 3
+vp_hold; case $? in 0) hold=1 ;; 1) hold=0 ;; *) exit 3 ;; esac
+branch=$(git symbolic-ref --quiet --short HEAD) || branch=
 if git remote get-url origin >/dev/null 2>&1; then
-  if network sh -c '. .vibeproof/checks/lib.sh; vp_fetch'; then
+  # The earlier way of saving used a separate branch named work; it is fetched only to report it.
+  if network sh -c '. .vibeproof/checks/lib.sh; vp_fetch "$1" work' vp "$branch"; then
     online=1
-    if git rev-parse -q --verify origin/work >/dev/null; then
-      behind=$(git rev-list --count HEAD..origin/work)
-      ahead=$(git rev-list --count origin/work..HEAD)
+    if [ -n "$branch" ] && git rev-parse -q --verify "refs/remotes/origin/$branch" >/dev/null; then
+      behind=$(git rev-list --count "HEAD..origin/$branch")
+      ahead=$(git rev-list --count "origin/$branch..HEAD")
       if [ "$behind" -gt 0 ] && [ "$ahead" -gt 0 ]; then
-        say "diverged: $ahead commits here and $behind on the work branch differ. Merge them (git pull --no-rebase origin work), check the merged result, then push. Never force-push."
+        say "diverged: $ahead commits here and $behind on origin/$branch differ. Merge them (git pull --no-rebase origin $branch), check the merged result, then push. Never force-push."
         behind=0 ahead=0
       fi
-      [ "$behind" -eq 0 ] || say "behind: $behind commits on the work branch are not here. Pull them (git pull --ff-only origin work) before any change."
-      [ "$ahead" -eq 0 ] || say "unpushed: $ahead commits here are not on the work branch. Push them (git push origin HEAD:work) if they are closed work."
+      [ "$behind" -eq 0 ] || say "behind: $behind commits on origin/$branch are not here. Pull them (git pull --ff-only origin $branch) before any change."
+      [ "$ahead" -eq 0 ] || say "unpushed: $ahead commits here are not on origin/$branch. If they are closed work, push them (git push origin HEAD:refs/heads/$branch); an open change's commits go out with its close."
     fi
-    live=$(vp_live_branch) || exit 3
-    [ "$(git rev-parse --abbrev-ref HEAD)" != "$live" ] || say "on $live: work happens on the work branch; $live is the live site. Switch to work."
+    if [ -n "$branch" ] && [ "$branch" != "$live" ] && git rev-parse -q --verify "refs/remotes/origin/$live" >/dev/null; then
+      moved=$(git rev-list --count "HEAD..origin/$live")
+      [ "$moved" -eq 0 ] || say "$live moved: $moved commits on origin/$live are not in this branch. Merge them (git merge origin/$live) and re-check before closing."
+    fi
+    ! git rev-parse -q --verify refs/remotes/origin/work >/dev/null ||
+      say 'leftover: the remote still has a work branch from the earlier way of saving changes. Follow the Vibeproof install guide, section 8b, with the person.'
   else
     say 'offline: sync, the GitHub check and updates were not checked. Tell the person in one line.'
   fi
 fi
+[ "$hold" -eq 0 ] || [ "$branch" != "$live" ] ||
+  say "on $live in hold mode (Close publishes: no): start a task branch (git switch -c <name>) before any change."
 
-# 3. The GitHub check's verdict for the work branch.
+# 3. The GitHub check's verdict for the main branch.
 if [ "$online" -eq 1 ] && [ -f .github/workflows/vibeproof.yml ]; then
   if network git fetch -q origin vibeproof-check 2>/dev/null; then
-    result=$(git show FETCH_HEAD:results/work.txt 2>/dev/null)
+    result=$(git show "FETCH_HEAD:results/$(printf '%s' "$live" | tr '/' '_').txt" 2>/dev/null)
     commit=$(printf '%s\n' "$result" | sed '/^$/,$d' | awk '$1 == "commit:" { print $2; exit }')
     verdict=$(printf '%s\n' "$result" | sed '/^$/,$d' | awk '$1 == "verdict:" { print $2; exit }')
-    work=$(git rev-parse -q --verify origin/work)
-    if [ -z "$commit" ] || [ "$commit" != "$work" ]; then
-      say 'GitHub check has no result for the current work branch yet; no pass is assumed.'
+    tip=$(git rev-parse -q --verify "refs/remotes/origin/$live")
+    if [ -z "$commit" ] || [ "$commit" != "$tip" ]; then
+      say "GitHub check has no result for the current $live yet; no pass is assumed."
     elif [ "$verdict" != pass ]; then
-      say "GitHub check did not pass commit $(printf '%s' "$commit" | cut -c1-7) on the work branch (verdict: ${verdict:-missing}):"
+      say "GitHub check did not pass commit $(printf '%s' "$commit" | cut -c1-7) on $live (verdict: ${verdict:-missing}):"
       printf '%s\n' "$result" | sed -n '/^$/,$p' | sed '1d; s/^/    /'
       say 'tell the person in plain words and fix it in a new commit; never rewrite history.'
     fi

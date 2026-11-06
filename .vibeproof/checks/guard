@@ -39,7 +39,7 @@ $found"
   printf '%s\n' "$paths" | LC_ALL=C sort -u | while IFS= read -r path; do
     [ -f "$path" ] || exit 1
     case "$path" in
-      *.md|*.yml|*.yaml|*.toml|.vibeproof/version|.vibeproof/installed-files)
+      *.md|*.txt|*.yml|*.yaml|*.toml|.vibeproof/version|.vibeproof/installed-files)
         sed 's/\r$//' "$path" > "$text_tmp" || exit 1
         hash=$(git hash-object --no-filters -- "$text_tmp") || exit 1 ;;
       *) hash=$(git hash-object --no-filters -- "$path") || exit 1 ;;

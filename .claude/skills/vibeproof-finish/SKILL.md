@@ -1,12 +1,12 @@
 ---
 name: vibeproof-finish
-description: Finish a shown and accepted change in a Vibeproof project — update product memory, run final checks, review features, report and save to work. Use after acceptance or to resume accepted work. Also handle an enabled project's due or explicitly requested bounded history review.
+description: Finish a shown and accepted change in a Vibeproof project — update product memory, run final checks, review features, report and save to the main branch. Use after acceptance or to resume accepted work. Also handle an enabled project's due or explicitly requested bounded history review.
 ---
 
 # Vibeproof: check, report, save
 
-Enter after the person accepted the shown result. Exit with the change saved to `work` and a short
-report. Saving is not publishing.
+Enter after the person accepted the shown result. Exit with the change saved where `close` put it
+(the main branch, or its task branch in hold mode) and a short report saying plainly where that is.
 For a due or requested history review, use [history learning](references/history-learning.md)
 directly; it never resumes other product work or enables the mode by itself.
 
@@ -103,15 +103,22 @@ sh .vibeproof/checks/close C-<n>
 ```
 
 It moves the change to `product/changes/closed/`, adds the changelog line, commits only its own
-paths and pushes to `work`.
+paths and delivers the change to the main branch (`Live branch:` in `product/operations.md`): from
+the main branch it pushes there; from a task branch it fast-forwards the main branch. In hold mode
+(`Close publishes: no`) it pushes only the task branch and refuses on the main branch.
 
 - On `VIBEPROOF REFUSED`, read which step failed and fix that cause. Nothing else was touched, so
-  rerun the same command.
-- If only the push failed, the work is safe locally. Say so and run `git push origin HEAD:work` before the
-  next change.
+  rerun the same command. If the main branch moved, merge it in as the refusal says, rerun the
+  relevant checks on the merged result, then close again.
+- If only the push failed, the work is safe locally. Say so and run the command it printed before
+  the next change.
 
-Then say where the work actually is: saved on `work`, not live. If they asked for delivery
-earlier, continue with `vibeproof-publish`; otherwise don't offer it.
+Then tell the person exactly where the change is now, in plain words and from what `close` printed
+and `product/operations.md` says: for example "it is on stage now" when the main branch deploys to
+stage, "it is saved but not live until you ask" when deployment is manual or in hold mode, or "it is
+going to the live site now" when the main branch deploys to production (call it live only after
+looking). Never predict that it will go out with a future release. If they asked for delivery earlier, continue with `vibeproof-publish`; otherwise
+don't offer it.
 After saving, push recovery and any requested delivery, consume a due hint through
 [history learning](references/history-learning.md). At most one automatic batch per session; advice,
 status, urgent product work and the person's stop/pause take precedence. Routine hints stay internal.

@@ -1,10 +1,11 @@
+model = "gpt-6-luna"
+model_reasoning_effort = "low"
 # Vibeproof scout (BD-43). install.md sets the available fast-tier model and effort here.
 # No model in this source template: installation resolves the signed-in account's choices.
 # Read-only here is a role, not enforced isolation: Codex agent files cannot set sandbox_mode
 # (it is inherited from the parent session), and only the shell tool can be switched off below.
 name = "vibeproof-scout"
 description = "Fast code search for a Vibeproof design: finds where something is defined, called, written or configured. It locates, it doesn't judge."
-model = "gpt-6-luna"
 model_reasoning_effort = "low"
 developer_instructions = """
 Find what you are asked to find in this repository and report exact paths and line numbers, with a

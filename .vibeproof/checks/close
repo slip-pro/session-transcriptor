@@ -1,7 +1,10 @@
 #!/bin/sh
 # Close an accepted change (BD-42). Usage: close <change-id>
 # Moves product/changes/<id> to product/changes/closed/<id>, adds the report's changelog line to
-# product/changelog.md, commits only those paths and pushes to the work branch. On a refusal it
+# product/changelog.md, commits only those paths and delivers the change to the main branch
+# ("Live branch:" in product/operations.md): from the main branch it pushes HEAD there; from a task
+# branch it fast-forwards the main branch, so the branch must already contain origin/<main>. In hold
+# mode ("Close publishes: no") it pushes only the task branch. Never force-pushes. On a refusal it
 # undoes only its own edits; nothing else in the working tree is touched. Run it again after an
 # interruption: a move left uncommitted is put back first.
 
@@ -51,6 +54,21 @@ for sid in $(awk '{ sub(/\r$/, "") } /^- remove S-[A-Za-z0-9-]+-[0-9]+:/ { s = $
 done
 [ -z "$missing" ] || stop "product/capabilities/ does not reflect the brief:$missing. Update it and commit first (vibeproof-finish §1)"
 
+# Where the close goes, settled before its commit.
+main=$(vp_live_branch) || exit 3
+vp_hold; case $? in 0) hold=1 ;; 1) hold=0 ;; *) exit 3 ;; esac
+branch=$(git symbolic-ref --quiet --short HEAD) || stop 'HEAD is not on a branch; switch to the main branch or a task branch first'
+[ "$hold" -eq 0 ] || [ "$branch" != "$main" ] ||
+  stop "product/operations.md holds accepted changes back (Close publishes: no), so they don't go onto $main directly. Move this work to a task branch (git switch -c <name>) and close there"
+remote=0
+git remote get-url origin >/dev/null 2>&1 && remote=1
+if [ "$remote" -eq 1 ] && [ "$hold" -eq 0 ] && vp_fetch &&
+  git rev-parse -q --verify "refs/remotes/origin/$main" >/dev/null &&
+  ! git merge-base --is-ancestor "refs/remotes/origin/$main" HEAD; then
+  if [ "$branch" = "$main" ]; then how="git pull --no-rebase origin $main"; else how="git merge origin/$main"; fi
+  stop "origin/$main has commits this branch doesn't. Bring them in ($how), re-run the checks on the result, then close $id again"
+fi
+
 backup=$(mktemp) || vp_cant_check 'no temporary file'
 had_log=0
 [ -f "$log" ] && { cp "$log" "$backup" || vp_cant_check "cannot back up $log"; had_log=1; }
@@ -75,15 +93,20 @@ fi
 rm -f "$backup"
 echo "closed $id"
 
-if git remote get-url origin >/dev/null 2>&1; then
-  if git push -q origin HEAD:work; then
-    echo "saved to the work branch; not live"
-  else
-    echo "VIBEPROOF CLOSE: closed locally, but the push to work failed. Run: git push origin HEAD:work" >&2
-    vp_learning_hint
-    exit 4
-  fi
+# Push failures leave the close safe locally: exit 4 with the exact recovery command.
+pushed() {
+  if git push -q origin "HEAD:refs/heads/$1"; then echo "$2"; return 0; fi
+  echo "VIBEPROOF CLOSE: closed locally, but the push to $1 failed. Run: git push origin HEAD:refs/heads/$1$3" >&2
+  vp_learning_hint
+  exit 4
+}
+if [ "$remote" -eq 0 ]; then
+  echo "closed locally on $branch; there is no remote to push to"
+elif [ "$hold" -eq 1 ]; then
+  pushed "$branch" "accepted; waiting in branch $branch, not on $main. It reaches $main only when the person asks (vibeproof-publish)"
 else
-  echo "closed locally; there is no remote to push to"
+  late=''
+  [ "$branch" = "$main" ] || late=" (if $main moved meanwhile: git merge origin/$main, re-run the checks, then push)"
+  pushed "$main" "saved to $main; it goes wherever $main deploys (see product/operations.md)" "$late"
 fi
 vp_learning_hint

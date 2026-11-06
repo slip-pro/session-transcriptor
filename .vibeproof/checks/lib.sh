@@ -9,7 +9,8 @@
 #   product/changes/<id>/design.md  a "## Review" heading once the design is reviewed
 #   product/capabilities/<area>.md  scenario lines "- S-<area>-<k>: ... — test: <path> › <name>"
 #   product/settings.md             "secret-ok: <path> <blob> — <reason>", "guard-ok: <path> — <effect> — ..."
-#   product/operations.md           "Live branch: <name>" (default main)
+#   product/operations.md           "Live branch: <name>": the main branch (default main);
+#                                   "Close publishes: no" holds closes in task branches (default yes)
 #   .vibeproof/installed-files      harness files, one path per line
 
 VP_REFUSED=0
@@ -131,23 +132,40 @@ vp_line_value() {
   vp_field "$1" < "$2"
 }
 
-# Explicit project deployment branch; main is the default.
+# The project's main branch, named by "Live branch:" (kept for compatibility); main is the default.
 vp_live_branch() (
   count=$(grep -c '^Live branch:' product/operations.md 2>/dev/null) || count=0
   [ "$count" -le 1 ] || vp_cant_check 'multiple Live branch entries in product/operations.md'
   branch=$(vp_line_value 'Live branch' product/operations.md)
   if [ "$count" = 0 ]; then branch=main; fi
-  case "$branch" in ''|work|vibeproof-check|refs/*|-*) vp_cant_check 'invalid Live branch in product/operations.md' ;; esac
+  case "$branch" in ''|vibeproof-check|refs/*|-*) vp_cant_check 'invalid Live branch in product/operations.md' ;; esac
   git check-ref-format "refs/heads/$branch" >/dev/null 2>&1 || vp_cant_check 'invalid Live branch in product/operations.md'
   printf '%s\n' "$branch"
 )
 
+# Succeeds in hold mode: "Close publishes: no" keeps accepted changes in their task branches.
+vp_hold() (
+  count=$(grep -ci '^Close publishes:' product/operations.md 2>/dev/null) || count=0
+  [ "$count" -le 1 ] || vp_cant_check 'multiple Close publishes entries in product/operations.md'
+  value=$(vp_line_value 'Close publishes' product/operations.md | awk '{ print tolower($0) }')
+  case "$value" in
+    no) exit 0 ;;
+    ''|yes) exit 1 ;;
+  esac
+  vp_cant_check 'invalid Close publishes in product/operations.md (yes or no)'
+)
+
+# Fetch the main branch and the named branches that exist on origin. A named branch gone from
+# origin loses its stale remote-tracking ref, so callers see what origin has now.
 vp_fetch() {
   heads=$(git ls-remote -q --heads origin 2>/dev/null) || return 1
   fetch_live=$(vp_live_branch) || return 1
-  for b in "$fetch_live" work; do
+  for b in "$fetch_live" "$@"; do
+    [ -n "$b" ] || continue
     if printf '%s\n' "$heads" | cut -f2 | grep -Fxq "refs/heads/$b"; then
       git fetch -q origin "+refs/heads/$b:refs/remotes/origin/$b" 2>/dev/null || return 1
+    elif [ "$b" != "$fetch_live" ]; then
+      git update-ref -d "refs/remotes/origin/$b" 2>/dev/null
     fi
   done
   return 0

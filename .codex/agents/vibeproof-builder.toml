@@ -1,8 +1,9 @@
+model = "gpt-6.1-sol"
+model_reasoning_effort = "medium"
 # Vibeproof builder (BD-43). install.md sets the available working-tier model and effort here.
 # No model in this source template: installation resolves the signed-in account's choices.
 name = "vibeproof-builder"
 description = "Builds one slice of an agreed, designed Vibeproof feature from its brief and design.md. Use only when the vibeproof-build skill hands over a slice."
-model = "gpt-6.1-sol"
 model_reasoning_effort = "medium"
 developer_instructions = """
 You build one slice of a Vibeproof change. You get the change id and the slice name. Read
