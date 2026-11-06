@@ -11,3 +11,16 @@
 - Ruling: `.cc-meeting-top` is single column when seats are shown or when processing without text (right cell would be empty).
 - Wording: «Добавить в записи» → «Добавить в заметки», tab «Мои записи» → «Мои заметки».
 - Open: «Скачать Word» card text and the digest menu «Добавить запись» unchanged.
+
+## Slice 2
+- Scripts changed by selectors only (originals in `.local/c6-before/tests/`): c5-clients, c3-visual, c3-roles, c2-journey, c2-metadata-red, c2-slice2, c2-transfer-screenshots. c2-audio-source, c2-smoke, c2-slice1, c2-forward, c3-home, c3-listen needed no edit.
+- Deviation c5 › reading: «save state on the date line (centre within 12px)» became «directly under the date/meta line (gap <24px, same x)», because the design puts `.cc-save-state` as its own line under `.cc-meeting-meta` inside the header. Meaning kept: one copy, in the header, attached to the meta; cost if wrong: one geometry check.
+- c5 › reading now opens meetings without `mode` and also checks that an old `mode=read` link loses `mode` from the URL; audio selectors `.cc-reader-top .cc-audio` → `.cc-meeting-listen .cc-audio`, heading font checked on `.cc-conversation-heading h2` («Разговор»).
+- c3-visual: screen `reader` removed (the meeting screen already waits for `.cc-reading-row`); audit also checks the language `select` in `.cc-document-line` (size and contrast, it has no text node); focus list gains client button (aria-label prefix «Клиент встречи:»), coach/client names, language, and phone tabs (Tab + ArrowRight); dark-card focus ring list gains the three document-line values; «Читать и слушать» removed from it.
+- c3-roles › reader step: the click on «Читать и слушать» and the «.cc-reader-top / Кто где?» checks are replaced by the same facts on the one page (chair faces in conversation rows, no reading-mode button, `#cc-who` visible, no «Скачать Word» before roles).
+- c2-slice2, c2-metadata-red, c2-journey, c2-transfer-screenshots: «Читать и слушать» clicks and `mode=read` URL waits → wait for `.cc-reading-row`; «Текст разговора» → «Разговор»; «Мои записи» → «Мои заметки»; «Клиент: X» → «Клиент встречи: X» («Клиент: не привязан» → «Клиент встречи: без клиента»); slice2 URL assertion `mode === 'read'` → `mode === null`.
+- c2-slice2: combobox «Роль участника 1» exists twice on the page now (seats in `#cc-who` and the paragraph role select), so the seat step is scoped to `#cc-who`. Not a product defect; accessible names repeat across two regions.
+- Lint: all errors are `require()` in test scripts and preview artifacts; the only addition is the new c6 test (same rule as every .cjs). No warnings or errors in app/ or lib/.
+- `next build` not run: operations.md gives no cheap isolated build, and a build in `.local/web` could overwrite output used by the 3100 preview; typecheck is green.
+- Screenshots in `.git/vibeproof-logs/`: c6-shot-ready-1280, c6-shot-ready-390 (viewport only), c6-shot-ready-800, c6-shot-roles-1280, c6-shot-roles-800; viewed, no layout breakage found.
+- Coordinator: on phones (≤760px) the h2 «Разговор» is hidden because the tab of the same name sits right under it (same pattern as the hidden notes h2); c6, c3-visual, c5 rerun green; cost: one CSS line.
