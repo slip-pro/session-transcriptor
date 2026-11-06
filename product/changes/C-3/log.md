@@ -17,3 +17,10 @@
 - «Послушать отрывок» is rendered only when the session has audio; not exercised in the browser script (no synthetic audio in the roles sessions). Cost if wrong: untested toggle.
 - C-2 scripts: renamed home/roles headings everywhere; no-roles Word assertions in slice2/metadata-red replaced by «no без ролей text» + 409; journey «Это я» → «Всё верно — сделать документ»; slice2 gets a wait until paragraph tools are enabled before the edit click (busy flag stays set briefly after a bookmark save; click was lost).
 - Reader name label is now a flex row (chair face + role select), forced with !important because older rules centre it.
+
+## Slice 3
+- Nav active state is the ink pill (white text) on every cabinet screen; focus ring on nav buttons added.
+- Visual script found and fixed: white-on-white «Скачать Word» in the ready card (base `.cc-button` has `color:white!important`), seats confirm button overflowing at 320px, muted texts at 4.0-4.4 contrast (inline help/status, history date, client request, archive tab, empty-audio text), no outline on ContextField triggers (older transfer rule set `outline:0`), login hero padding/colour at 390.
+- «Послушать отрывок» now covered by `tests/cabinet-c3-listen.cjs` (tone attached through the audio PUT API): play, label «Пауза», other seat pauses, second click pauses.
+- C-2 scripts adjusted for removed/renamed UI only: smoke (note button label), metadata-screenshots (click on footer instead of the removed hint), audio-source (attaches audio first, since seat previews now render only with audio). Assertions unchanged.
+- Visual contrast check treats all text as normal (4.5) and ignores text over background images/gradients (none found in sampled screens).
