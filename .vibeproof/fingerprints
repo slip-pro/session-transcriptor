@@ -2,7 +2,7 @@ format: 1
 4905b21a11f272a6a683552191dd2df531e0fc1c  .agents/skills/vibeproof-build/SKILL.md
 3651803d12de8d875bb327de025fadd79383e5e4  .agents/skills/vibeproof-build/references/public-pages.md
 dc13d0d08d1e9aa632f54608fcaf00e4bb2fd1bd  .agents/skills/vibeproof-build/references/reviewer-checklist.md
-45916d45e00dbd87e95eaa989bf3f03927986852  .agents/skills/vibeproof-build/references/slop-check/THIRD_PARTY_NOTICES.txt
+4da627f879d25939f2c248729542dd31be451be8  .agents/skills/vibeproof-build/references/slop-check/THIRD_PARTY_NOTICES.txt
 dab1b97f4e255fe7f91f47d5e8f8e6469bedc64e  .agents/skills/vibeproof-build/references/slop-check/provenance.md
 9173bc533fca78d610256ae850d13c1c0dba0c33  .agents/skills/vibeproof-build/references/slop-check/references/english.md
 05ae35b9012bcf5d9065b7f6c5fef3b1a0dff6cf  .agents/skills/vibeproof-build/references/slop-check/references/evaluation.md
@@ -29,7 +29,7 @@ c863d9df829e2c992be55c4ce07e6b7587b53212  .claude/agents/vibeproof-reviewer.md
 4905b21a11f272a6a683552191dd2df531e0fc1c  .claude/skills/vibeproof-build/SKILL.md
 3651803d12de8d875bb327de025fadd79383e5e4  .claude/skills/vibeproof-build/references/public-pages.md
 dc13d0d08d1e9aa632f54608fcaf00e4bb2fd1bd  .claude/skills/vibeproof-build/references/reviewer-checklist.md
-45916d45e00dbd87e95eaa989bf3f03927986852  .claude/skills/vibeproof-build/references/slop-check/THIRD_PARTY_NOTICES.txt
+4da627f879d25939f2c248729542dd31be451be8  .claude/skills/vibeproof-build/references/slop-check/THIRD_PARTY_NOTICES.txt
 dab1b97f4e255fe7f91f47d5e8f8e6469bedc64e  .claude/skills/vibeproof-build/references/slop-check/provenance.md
 9173bc533fca78d610256ae850d13c1c0dba0c33  .claude/skills/vibeproof-build/references/slop-check/references/english.md
 05ae35b9012bcf5d9065b7f6c5fef3b1a0dff6cf  .claude/skills/vibeproof-build/references/slop-check/references/evaluation.md
@@ -55,7 +55,7 @@ a822656b3fb28808e123a6cd3b288702ab0dbb83  .codex/agents/vibeproof-reviewer.toml
 0d35265b95fc093cf4dc87eaab2014b0007d7793  .codex/agents/vibeproof-scout.toml
 461a304614dce8d9808e477ece2ecea814dc57a1  .vibeproof/checks/close
 3fea8116b46b536d9115ba930d4a3b1af6a899c2  .vibeproof/checks/commit-msg
-f08d18c65b1f2750bcef17567d5a3d8d64744dff  .vibeproof/checks/guard
+c12c3b4bbfc831288507353f7e98b37295c2e58b  .vibeproof/checks/guard
 424563d50a8f058f8ed138f6e5fb25137f9c55e2  .vibeproof/checks/history
 1a4c10160c767ab9e325cc6a33c96be53c594693  .vibeproof/checks/learning
 470e3d360ca7ca979d59032bd3b85593eef2d3fd  .vibeproof/checks/lib.sh
@@ -64,6 +64,6 @@ d2bfe9163b60d8925f65f4262fcdcd6958758333  .vibeproof/checks/publish
 b54b8d2cb9249babecaae24feced0e34938740c8  .vibeproof/checks/selftest
 6009de2bf02a9dc0fdf2e7540bffa9ecdaea5551  .vibeproof/checks/session
 a92e40f02cd1ad11d4ffa8fde05ca0a51eb3354a  .vibeproof/installed-files
-1b0d411fa531b09260959c60f91c959b889bee5c  .vibeproof/version
+94bbb8024f165f35199180caf6bc6efa3389fcf7  .vibeproof/version
 b9d87f2fbeb9f08688d7c2fd6c58712f5d343f73  @AGENTS-block
 978e6ab42e689e372401edfda38c4b9e785f7feb  @commit-msg-hook
