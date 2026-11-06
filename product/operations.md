@@ -29,3 +29,6 @@ Use Node 24.22.1 (`C:/Users/user/.cache/codex-runtimes/codex-primary-runtime/dep
 ## C-5 notes (2026-11-06)
 In Git Bash put Node 24.22.1 on PATH in `/c/Users/user/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/bin` form; the `C:/...` form leaves Node 22 first. Restart the 3104 preview by stopping only the helper's process tree (`node --import tsx scripts/cabinet-c2-demo.ts` → `next dev … --port 3104`; `taskkill /PID <helper> /T /F`), never `taskkill /IM node.exe` (it stops every Node process, incl. the 3100 preview). After a restart the browser session is lost — sign in again. C-5 browser check: tests/cabinet-c5-clients.cjs [list|client-page|reading]. `npm run lint` also scans preview artifacts under `.local/cabinet-c2-demo/site/.next-c2`.
 
+
+## C-7 notes (2026-11-06)
+Preview 3104 serves a copy at `.local/cabinet-c2-preview`; after source edits in `.local/web` run `cp -r app/. ../cabinet-c2-preview/app/` from `.local/web` (next dev hot-reloads, no restart, no re-login). `diff -rq app ../cabinet-c2-preview/app` empty = in sync. Readiness: `node tests/cabinet-c6-meeting.cjs page` prints `ok page`. Rollback copies for C-7: `.local/c7-before/`.
