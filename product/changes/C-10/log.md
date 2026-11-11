@@ -9,3 +9,5 @@
 - Slice 2: one image tag for web and worker; rollback to the two old tags uses the previous compose file (README). Cost if wrong: a slower rollback.
 - Slice 2: cabinet uploads share the old site's global upload rate (1/min, burst 2). Fine for a pilot of two people; cost if wrong: a second upload within a minute gets «подожди» and is retried.
 - Slice 2: test pulls alpine, nginx:1.27-alpine, curlimages/curl (floating tag) into the local Docker cache; left there.
+- Slice 3: WAV vs Opus on the first 180 s — word agreement 0.98, Opus 5.4× smaller; two Deepgram calls, 360 s, ~$0.04.
+- Slice 3: local worker uses CODEX_BIN = desktop-app codex 0.167.0; codex 0.36.0 on PATH cannot read this computer's config. Local Codex login revoked (401 token_revoked) — health showed codex_login_failed live; full run waits for the owner to sign in.
