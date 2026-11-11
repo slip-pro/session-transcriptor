@@ -5,3 +5,7 @@
 - Slice 1: `markAudioExpired` also takes the storage id, so a re-attach racing the sweep is never marked expired. Cost if wrong: none.
 - Slice 1: a successful formatting run marks Codex ok only with the real formatter (an injected formatter proves nothing about the login). Cost if wrong: health stays on the last probe result for up to 60 min.
 - Slice 1: privacy page sentence about audio storage updated to the 30-day rule (otherwise it contradicts the brief). Cost if wrong: one sentence.
+- Slice 2: base image keeps Node v24.22.2 — no bump needed.
+- Slice 2: one image tag for web and worker; rollback to the two old tags uses the previous compose file (README). Cost if wrong: a slower rollback.
+- Slice 2: cabinet uploads share the old site's global upload rate (1/min, burst 2). Fine for a pilot of two people; cost if wrong: a second upload within a minute gets «подожди» and is retried.
+- Slice 2: test pulls alpine, nginx:1.27-alpine, curlimages/curl (floating tag) into the local Docker cache; left there.
