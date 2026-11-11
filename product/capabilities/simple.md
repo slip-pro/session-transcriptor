@@ -1,7 +1,15 @@
 # Capability: простой путь коуча (кабинет, `.local/web`)
 
-Остальные сценарии S-simple (C-2) будут перенесены сюда при закрытии C-2.
+Сценарии C-2 записаны при его закрытии 2026-11-11 в сегодняшнем виде, с учётом C-3…C-9.
 
+- S-simple-1: вход и главная объясняют задачу: «Добавь запись», одно поле для аудио или готового текста; «Мои клиенты» и «Все встречи» находятся без подсказки — test: .local/web/tests/cabinet-c8-home.cjs › hero; .local/web/tests/cabinet-c3-home.cjs
+- S-simple-2: после выбора аудио — короткое подтверждение с запомненными значениями и одним следующим действием; вопроса о ролях заранее нет; повтор после сбоя сохраняет параметры и ту же встречу — test: .local/web/tests/cabinet-c2.test.ts › confirmation has one next action; optional metadata waits; .local/web/tests/cabinet-recordings.test.ts
 - S-simple-3: форма встречи открывается только после выбора файла с готовым текстом: без выбора материала, без пункта «Последний результат транскрибатора» и без слова JSON; текст не уходит на распознавание — test: .local/web/tests/cabinet-c8-home.cjs › text-form; .local/web/tests/cabinet-ux.test.ts › meeting form has no material choice
 - S-simple-4: «Кто в каком кресле?» — фразы каждого голоса, доля времени, «Послушать отрывок», «Поменять местами», «Всё верно — сделать документ»; при 1 / 3+ / неизвестных голосах — выбор роли у каждого; выгрузки без ролей нет — test: .local/web/tests/cabinet-c3-roles.cjs; .local/web/tests/cabinet-c3-listen.cjs
 - S-simple-5: встреча — пара кресел в заголовке, тёмная карточка «Документ готов» с одной кнопкой «Скачать Word», в режиме чтения у реплик кресло и цвет роли — test: .local/web/tests/cabinet-c3-roles.cjs › reader; .local/web/tests/cabinet-c3-visual.cjs
+- S-simple-4: пока роли не назначены, до скачивания видны короткие примеры речи каждого голоса; нейтральные подписи доступны явным действием; поддерживается и не два голоса — test: .local/web/tests/cabinet-c3-roles.cjs; .local/web/tests/cabinet-speakers.test.ts
+- S-simple-5: готовая встреча открывается с Word; разговор, свободная заметка и разделы заметок на той же странице (без отдельного режима чтения, D10); у реплик кресло и цвет роли — test: .local/web/tests/cabinet-c6-meeting.cjs › page; .local/web/tests/cabinet-c3-roles.cjs › reader
+- S-simple-6: на странице встречи работают правка текста, прослушивание с места реплики, закладки, цитаты, поиск и возврат к реплике по ссылке — test: .local/web/tests/cabinet-c6-meeting.cjs; .local/web/tests/cabinet-editor.test.ts
+- S-simple-7: страница клиента показывает историю встреч и подготовку; правка, архив, удаление и перенос встречи к другому клиенту доступны на месте — test: .local/web/tests/cabinet-c5-clients.cjs › client-page; .local/web/tests/cabinet-materials.test.ts
+- S-simple-8: обработка, ошибка и пустые состояния показывают следующий шаг и не выдают незавершённое за готовое — test: .local/web/tests/cabinet-ux.test.ts › meeting state: one rule for chairs and pill; pending processing beats roles, failure beats text
+- S-simple-9: на компьютере, 390 и 320 px и с клавиатуры нет горизонтальной прокрутки, текст читаем, фокус виден; правки переживают перезагрузку — test: .local/web/tests/cabinet-c3-visual.cjs; .local/web/tests/cabinet-editor.test.ts

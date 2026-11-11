@@ -8,3 +8,12 @@ Limitations: no real ASR/AI calls; no real recordings edited; no physical phone/
 
 Final bounded fixes: central reader-transition pause verified with new browser regression tests/cabinet-c2-audio-source.cjs (failed before/passed after). Final typecheck/lint and both browser journeys pass after voice copy/separators changes. Preview session93150 remains running. No further polishing pending before owner review.
 
+## Acceptance and close — 2026-11-11
+Owner: «Да, закрывай» (2026-11-11), on the proposal to close C-2 as accepted, with scenarios written in today's form. C-3…C-9 built on this transfer; parts changed since then: home shows «Мои клиенты» (C-8, C-9); ready text without material choice (C-8, S-simple-3); no separate reading mode (C-6, D10). Scenarios S-simple-1…9 recorded in product/capabilities/simple.md as they are today.
+Checks: no code changed at close. The latest runs on the current code (C-9 finish, 2026-11-06): unit 86/87 with 1 skip; browser c8-home, c3-home, c3-roles (flaky first run, passed on rerun), c5-clients, c3-visual, c6-meeting, c7-tidy pass. Not checked: real ASR/AI path (moved to C-10), physical phone.
+changelog: Кабинет ведёт от записи к Word одним понятным путём; правки сохраняются после перезагрузки.
+
+## Learning signals
+- Change stayed open six days while C-3…C-9 were built on top of it; acceptance was never asked explicitly after the transfer. Resolved at close by rewriting scenarios. Source: product/changes/closed/C-2/log.md.
+Learning urgency: normal
+
