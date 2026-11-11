@@ -32,3 +32,7 @@ In Git Bash put Node 24.22.1 on PATH in `/c/Users/user/.cache/codex-runtimes/cod
 
 ## C-7 notes (2026-11-06)
 Open the preview as http://localhost:3104 (127.0.0.1 fails sign-in). Preview 3104 serves a copy at `.local/cabinet-c2-preview`; after source edits in `.local/web` run `cp -r app/. ../cabinet-c2-preview/app/` from `.local/web` (next dev hot-reloads, no restart, no re-login). `diff -rq app ../cabinet-c2-preview/app` empty = in sync. Readiness: `node tests/cabinet-c6-meeting.cjs page` prints `ok page`. Rollback copies for C-7: `.local/c7-before/`.
+
+## C-10 notes (2026-11-11)
+Web app code is the git worktree `.local/web` of this same repository, branch `codex/linux-hosting` (local only; push needs the owner's separate «да»). Vibeproof checks are installed there too (commit 32a3d6b, copy of this branch's version plus `product/changes/C-10` and `product/settings.md`); commits there run the same commit check. Keep its `product/changes/C-10` in sync with this branch when the brief or design changes.
+Readiness in `.local/web` (Git Bash): `export PATH="/c/Users/user/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/bin:$PATH"`, then `npm test` (baseline 86 pass, 1 skipped), `npm run typecheck` (0), `npm run lint` (baseline 53 errors, all in `.local/**` and `tests/*.cjs`; fixed by C-10 slice 1). ffmpeg from PATH (winget build, has libopus). Docker 29.8.2 available. Logs to `.git/vibeproof-logs/c10-*`.
