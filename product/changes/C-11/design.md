@@ -115,3 +115,7 @@ Fresh read-only review by `vibeproof-reviewer` (2026-11-18), given brief, design
 - Rejected: an «у тебя уже есть аккаунт» letter on duplicate sign-up — not in the brief.
 
 Note: the brief names `tests/c11-accounts.cjs` and `tests/c11-transcriber.cjs`; these scenarios are tested at route level in `tests/c11-accounts.test.ts` and `tests/c11-transcriber.test.ts` as above. The brief path correction goes in one revision together with the mail-transport answer.
+
+## Revision 2026-11-18: mail via Zoho SMTP
+
+Owner: mailbox alexandra@kiberry.ai on Zoho; «Да, добавляй nodemailer». `lib/mail.ts` gets `MAIL_TRANSPORT=smtp` using `nodemailer@10.5.0` (exact pin; 10.6.0 was < 7 days old; no dependencies, no install scripts, own types, MIT-0): settings `SMTP_HOST` (smtp.zoho.eu / smtp.zoho.com by the account's data centre), `SMTP_PORT` (465), `SMTP_SECURE` (default true), `SMTP_USER`, `SMTP_PASS` (Zoho app password, server env only), `MAIL_FROM`. Production refuses to start unless the transport is smtp with all settings. Test: `tests/c11-accounts.test.ts` › smtp — an in-test SMTP server receives from/to/auth/subject/link. Docker test gives the web container synthetic SMTP settings. `deploy/README.md` lists the variables and a one real letter check before opening sign-up. Not reviewed again: no change to access, data or architecture beyond the transport.
