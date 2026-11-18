@@ -14,7 +14,7 @@ The product direction and roadmap were recorded on 2026-11-04. Build for the own
 - [Coach cabinet research](docs/research/2026-11-04-coach-cabinet.md)
 - [Proposed first coach cabinet release](docs/features/coach-cabinet-v1.md)
 
-The next proposed release adds a private coach account, clients, and session history with transcripts and DOCX. AI analysis follows that foundation. This changes the plan; the repository still contains the CLI, not a shipped web cabinet.
+Since 2026-11-18 the nearest goal is a paid transcriber ([D20](product/decisions/D20-paid-transcriber-first.md)): a public start page, personal accounts with sign-up and sign-in, and payment for transcription. The coach cabinet (clients, session history, DOCX) is built in `.local/web` but stays closed to users for now; AI analysis follows it. Nothing of this is shipped yet.
 
 The planned free tier includes 3 current-style transcriptions with DOCX. The paid tier includes unlimited transcription count and all new features as they ship. Pricing, billing period, and free-quota renewal rules are undecided.
 
