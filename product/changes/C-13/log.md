@@ -44,3 +44,18 @@
 - Colours: client = `--cc-client-soft` block with a `--cc-client-chair` bar; unknown = white with a thin `--cc-empty` outline; not-client = muted grey. Today = number in a circle of the cabinet accent (dark, `--cc-accent`), not blue.
 - Known small gap: when the grid opens scrolled to the current hour, the first hour label is partly under the sticky header.
 - Polish after the first grid screenshots: hour row 68 px; block text is clamped to whole lines that fit the block (name, optional small title, start time under it), a block too short for two lines is one line «18:00 Name»; the client's event title stays in the DOM (hidden when it does not fit) and in the aria-label. The grid opens scrolled to a whole hour with 10 px padding above the body, so the first label is readable. The phone drops the duplicate day header (the strip shows the day); desktop «День» keeps it. The phone initial view is read from `matchMedia` in the state initialiser, so there is no week flash. Browser test checks: no clipped text, no half-hidden hour label, 64-72 px hour, no header on the phone.
+
+## Learn by email (S-schedule-10)
+- `ScheduleEvent.guestEmails` (lower case, no repeats, max 5, no self); matching still uses every attendee address, only the response is capped.
+- `PUT /calendar/assignments` takes `learnEmails` (max 5, `x@y.z` check, 254 chars). One transaction: choice + contact update. Errors: `CONTACT_TOO_LONG` 400, `EMAIL_TAKEN` 409 (another client in work already has it), `INVALID_DATA` for `clientId:null` with addresses. «Already known» compares with the chosen client's own contact, case-insensitively; archived clients do not block an address.
+- `contactAddresses` moved to `store.ts` (calendar.ts imports it) so the server and the matcher read contacts the same way. The window decides client-side which ticks to offer with a plain `includes` over active clients' contacts; the server is the referee.
+- The agreed week test's key list got `guestEmails` (the design adds that field); nothing else of it changed.
+- Side effect, intended: once an address is learned, «Определять автоматически» on that series gives the client by email, not «unknown». The browser `assign` step expects exactly that.
+- Preview data: the fake Google has «Разговор» and a separate «Вечерний созвон» with the same guest; the fake was restarted to serve them (new PID). The browser test now deletes stale «Тест Назначенный …» clients and the three known series assignments at start (an interrupted run used to leave the preview in a state that failed the next one), and clears a «reconnect» state at the `connect` step.
+- I wrote the browser step after the server code, so only the unit test was seen failing first (red log `c13-learn-unit-red.log`); the browser step has not been seen red.
+
+## Revision 2 (home client-only, clearer labels)
+- Home shows only meetings with a client, max 8 rows; unknown ones are counted in a quiet button «Ещё N встреча/встречи/встреч без клиента — в расписании» (leads to the tab; «не клиент» is not counted); empty text «Сегодня и завтра встреч с клиентами нет». The count is of unknown meetings in today+tomorrow, not of client rows cut by the 8-row cap.
+- Labels: «Указать клиента» (unknown and «не клиент»), «Сменить клиента» (client meeting), window «Клиент встречи». The test fails if any old label is in the page text (week window, assign window, home). aria-labels were not scanned.
+- Home rows no longer offer a button for unknown meetings (they are not rows); the home dialog is reached through «Сменить клиента».
+- «Ещё N…» and «Всё расписание» are separate lines; first version ran together and was caught on the screenshot, not by a test.
