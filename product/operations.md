@@ -49,6 +49,11 @@ Real recording through the cabinet with real Deepgram and Codex, on this compute
 ## C-11 notes (2026-11-18)
 Local preview of the current site: a copy at `.local/web/.local/c11-preview/site` served by `next dev` on http://localhost:3111 (port 3110 may hold a leftover C-10 dev server from another directory); data in `.local/c11-preview/data`, `run.env` with a synthetic secret and `MAIL_TRANSPORT=outbox` (letters as JSON in `data/outbox/`, the link is the first URL in `text`). After source edits: `sh .local/c11-preview/sync.sh` from `.local/web`. Start: `node .local/c11-preview/start.cjs "<logs dir>"`; stop only its PIDs. Test accounts: `.local/c11-preview/accounts.md` (gitignored). Rate limits: sign-in 5/min, sign-up 3/min — wait ~70 s between browser scripts. Production needs `MAIL_TRANSPORT=smtp` and SMTP_* / MAIL_FROM (see `.local/web/deploy/README.md`), otherwise the site refuses to start. A second guard-ok for the same lockfile needs the previous used line removed in an earlier commit (the commit check counts only a line absent before).
 
+## C-14 notes (2026-11-19)
+- Same preview as C-13 (preview folder is `.local/web/.local/c11-preview`). After code changes run `sh .local/c11-preview/sync.sh`; the listening PID of 3111 changes on sync.
+- Browser check: `node tests/c14-edit.cjs [create] [move] [cancel] [not-own] [failure] [layout] [drag]` — runs in an Asia/Yekaterinburg browser, reconnects the fake calendar itself, removes the meetings it made. One sign-in per run (limit 5/min).
+- The fake Google has test-only `POST /__flags` (failWrite500, forbidWrite403, failAfterWrite500, …), `GET /__events`, `GET /__log`. Restarting the fake drops its events and tokens.
+
 ## C-13 notes (2026-11-19)
 Preview of the schedule tab = the C-11 preview plus a fake Google as its own process. Run from `.local/web` with Node 24 on PATH (`/c/Users/user/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/bin`).
 - `.local/c11-preview/run.env` carries `GOOGLE_CLIENT_ID/SECRET` (fake values) and `GOOGLE_OAUTH_BASE/TOKEN_URL/REVOKE_URL/API_BASE` -> `http://127.0.0.1:3121/...` (accepted only because `CABINET_URL` is localhost).
