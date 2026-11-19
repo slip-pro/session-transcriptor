@@ -30,3 +30,17 @@
 - Browser test: deterministic cases (empty day, 8-row cap, «не клиент», reconnect/unavailable, long names, ended meeting) use Playwright route mocks of `/calendar/events`; the real fake-Google data is checked against the API answer for the same range, so the test holds on any weekday. Request ranges are asserted: today 00:00 + 2 days (home), + 60 days (client).
 - The test found a real defect: the chair shrank to a dot beside a very long client name; fixed with `flex:none` on the first child of `.cc-schedule-main`.
 - `cabinet-c8-home.cjs` is hard-wired to port 3104 (preview not running); run once as a temporary copy pointed at 3111 (`my-clients` passed), the test file itself is unchanged. `cabinet-c3-visual.cjs` not run (design asked for it; needs its own preview, not in this slice's brief).
+
+## Grid correction (2026-11-19)
+- The week tab is a time grid; home block, client head and `MeetingRow` are untouched. `layoutDay(events)` in `lib/cabinet/schedule-view.ts` returns top/height in minutes from midnight (minimum 30 minutes, stops at midnight, all-day events skipped) and splits overlapping meetings into columns; the minimum height counts for overlap, so a stretched short meeting never sits under the next one.
+- Visible hours are 07:00-23:00 and widen only when a meeting (or the current time) falls outside. The grid scrolls inside itself; heads and the all-day row are sticky inside that scroll box so they line up with the columns.
+- One request per week even in «День»: the selected day is a column of the same week answer, so switching days inside a week does not refetch.
+- The «весь день» row appears only when the shown period has an all-day event (less empty chrome).
+- «Не клиент» has a third button in the meeting window, «Не клиент · изменить» (the design lists two labels); it opens the same «Чья это встреча?» window.
+- Meeting window title is «Встреча»; «Чья это встреча?» replaces it (one dialog at a time, the dialog component uses a fixed heading id).
+- Phone (<=760 px) is forced to «День» by `matchMedia`; first paint is «Неделя» for a moment on a phone before the effect runs (not fixed, hidden by CSS: week switch and one column only appear after).
+- Settings (gear) dialog holds «Календари: … · Изменить» and «Отключить календарь»; the browser test steps `connect` and `assign` use it.
+- The period label is capitalised by CSS (`text-transform`), so the test matches it case-insensitively.
+- Colours: client = `--cc-client-soft` block with a `--cc-client-chair` bar; unknown = white with a thin `--cc-empty` outline; not-client = muted grey. Today = number in a circle of the cabinet accent (dark, `--cc-accent`), not blue.
+- Known small gap: when the grid opens scrolled to the current hour, the first hour label is partly under the sticky header.
+- Polish after the first grid screenshots: hour row 68 px; block text is clamped to whole lines that fit the block (name, optional small title, start time under it), a block too short for two lines is one line «18:00 Name»; the client's event title stays in the DOM (hidden when it does not fit) and in the aria-label. The grid opens scrolled to a whole hour with 10 px padding above the body, so the first label is readable. The phone drops the duplicate day header (the strip shows the day); desktop «День» keeps it. The phone initial view is read from `matchMedia` in the state initialiser, so there is no week flash. Browser test checks: no clipped text, no half-hidden hour label, 64-72 px hour, no header on the phone.
