@@ -4,3 +4,8 @@
 - Slice 1: a `terms` of `{kind:null, slot:null}` is stored as NULL (no terms, no slot). Cost if wrong: none visible.
 - Slice 1: `PATCH {terms}` goes through one transaction with the `{programDone}` path; adjust resets when kind or startDate changes (also kind program->once->program).
 - Slice 1: only parseTerms, programDone, programLine, slotLine are in lib/cabinet/terms.ts; seriesPlan and slotConflicts come in later slices.
+- Slice 2: ClientForm always sends `terms` (null when none/unfilled); the old fields still go flat. Profile with unchanged terms keeps `adjust` (server rule). Cost if wrong: none.
+- Slice 2: slotConflicts counts the first four weekly occurrences strictly later than now (today's slot counts only if its time is still ahead); a calendar event of another client is named by the client, otherwise by its title.
+- Slice 2: the browser conflict check covers the client-slot case only (no calendar connected in c17-terms.cjs); the calendar-event case is covered by the server test `slot conflict`. Cost if wrong: an unverified wiring of useSchedule events in the form (code path is `schedule.data.events` when state is connected).
+- Slice 2: layout Tab walk requires one visible focus ring per control (a date input's inner calendar-button stop shows none in Chrome, outside the page's control).
+- Slice 2: series offer not built; hook comment in workspace.tsx `saved` of ClientForm.
