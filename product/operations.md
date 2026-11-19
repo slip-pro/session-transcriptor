@@ -52,6 +52,7 @@ Local preview of the current site: a copy at `.local/web/.local/c11-preview/site
 ## C-14 notes (2026-11-19)
 - Same preview as C-13 (preview folder is `.local/web/.local/c11-preview`). After code changes run `sh .local/c11-preview/sync.sh`; the listening PID of 3111 changes on sync.
 - Browser check: `node tests/c14-edit.cjs [create] [move] [cancel] [not-own] [failure] [layout] [drag]` — runs in an Asia/Yekaterinburg browser, reconnects the fake calendar itself, removes the meetings it made. One sign-in per run (limit 5/min).
+- Before a final browser run restart the fake Google (fresh data): leftovers of earlier runs can overlap fixtures and fail layout checks (C-15). C-15 browser check: `node tests/c15-series.cjs [create] [move] [cancel] [started] [call] [layout]`.
 - The fake Google has test-only `POST /__flags` (failWrite500, forbidWrite403, failAfterWrite500, …), `GET /__events`, `GET /__log`. Restarting the fake drops its events and tokens.
 
 ## C-13 notes (2026-11-19)

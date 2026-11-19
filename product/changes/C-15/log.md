@@ -22,3 +22,13 @@ Slice 2 (windows and dragging).
 - Ruling: c14-edit.cjs M2 line replaced by: the series meeting's «Перенести» form has «Только эту» chosen, the move sends one PATCH on the occurrence id with no `recurrence`, then the occurrence is moved back to its time (the preview data stays as it was).
 - Ruling: c15 tabWalk counts a radio group as one Tab stop (native behaviour: the others by arrow keys).
 - Ruling: privacy page: one sentence, the stored Zoom link is kept apart from the calendar access, «Отключить календарь» does not erase it, it can be removed in the settings.
+
+Review fixes (server).
+- Ruling: split POST answered 409 and GET says status "cancelled" (a taken-back series): POST again with a fresh random id (26 base32hex); the old series is trimmed only after a live new series exists. Cost if wrong: one extra POST on that rare retry.
+- Ruling: fake Google now keeps a deleted master/single event as "cancelled" (hidden from the list, POST of its id is 409, GET returns it); `masters()` in c15 counts live masters only, and `tests/c14-edit.test.ts:202` now checks the stored event is "cancelled" instead of absent (the list-hides-it assertion is unchanged).
+- Ruling: "following" (move and cancel) is 400 INVALID_DATA also when originalStartTime <= now, before any write.
+- Ruling: isolation test (coach B on her own fake account, move/cancel "following" on A's series key and on the master key) added as the last subtest of c15 (after "call link", which leaves B disconnected).
+- Браузерная проверка C-14: помощник fakeEvents не считает отменённые события (поддельный Google теперь, как Google, хранит удалённое событие со status cancelled). Проверка та же: встречи после отмены нет. Цена ошибки: нет.
+- Падение c13-schedule.cjs «text cut through» в итоговом прогоне — остаток данных прошлых прогонов в поддельном Google (встреча «Сессия с Марина Календарёва» в среду 19:00 пересеклась с «Вечерний созвон»). На свежем поддельном Google последовательность c15 → c14 → c13 проходит целиком. Узкий блок при пересечении двух встреч с длинным именем обрезает текст — в очередь.
+- После повторного ревью: событие или серия, удалённые в Google (status cancelled), не переносятся и не отменяются — CALENDAR_EVENT_GONE, ничего не пишется; иначе «эту и следующие» воскресила бы удалённую серию. Если главное событие серии не читается (как у старых фикстур без главного), проверяется только сама встреча, как в C-14. Цена ошибки: лишний GET на перенос встречи серии.
+- Не сделано (ревью, minor): после двух сбоев подряд при разрезе повтор со случайным id может дать вторую новую серию. Очень редко (два сбоя Google подряд), исправляется удалением серии в Google. Цена: дубль встреч.
