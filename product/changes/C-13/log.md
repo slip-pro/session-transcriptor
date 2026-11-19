@@ -10,3 +10,14 @@
 - Selection kept across reconnect (only new connections start with an empty selection = primary calendar).
 - `compose.yaml` unchanged: it reads `secrets/access.env` whole, so `GOOGLE_*` only needed a line in `deploy/README.md`.
 - Callback with an unconfigured Google answers `failed`; connect with it answers the `unavailable` redirect.
+
+## Slice 2 (schedule tab)
+- A fourth tab broke the phone header (page scrolled sideways at 390/320 on every page): added a late rule in room.css so the tabs shrink (13-14 px, tighter padding) and may wrap.
+- A client's row has a quiet «Не тот клиент?» (design only named «Чья это встреча?» for unknown ones); it is the way to fix a wrong automatic match, and offers «Определять автоматически» when the choice was manual.
+- Page-level data per week: the tab asks for Monday 00:00 to next Monday 00:00 (browser time), refreshes every 2 min; changing week shows «Загружаем встречи…» rather than the old week.
+- Calendar dialog opens after return only on `calendar=connected`; the param is removed from the address at once (replaceState), the message stays until the tab is left.
+- «Отключить» with a failed Google revoke keeps the design text (revoke it in the Google account) as the notice instead of «Календарь отключён».
+- If the events answer says reconnect/not_connected while the status said connected, the tab follows the events (derived, no effect).
+- `MeetingRow`, `WhoseMeeting`, `useSchedule` are exported from schedule.tsx for slice 3 (home block, client head).
+- Browser test creates/reuses clients «Марина Календарёва» and «Елена Почтова» in the preview account and fails if another active client starts with «Марина» (name matching would be ambiguous); the client made in `assign` is deleted at the end. `connect` disconnects first, so it also covers «Отключить». The denied-by-Google UI path is covered only by the server test (the fake process has no switch).
+- Preview start: the web process died once right after `start.cjs` (log only had a cursor reset); starting it again worked. Not diagnosed.
