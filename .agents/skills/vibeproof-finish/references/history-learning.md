@@ -141,7 +141,7 @@ learning, not product work.
 
 Save only owned paths in a normal project documentation commit. Inspect the index and diff; never
 sweep unrelated staged work (`git commit --only -- <owned-paths>` where appropriate). Keep actionable
-deferred investigation in `product/queue.md` linked here. On commit refusal preserve the draft, fix
+deferred investigation in `product/queue/Q-<n>.md` linked here. On commit refusal preserve the draft, fix
 the stated cause and resume without duplicate entries; the draft acknowledges nothing. A successful
 local commit is completion even if push fails. Recover normal sync, fetch and integrate concurrent
 work, retry only the push before more learning; never force-push or run another analysis to fix sync.

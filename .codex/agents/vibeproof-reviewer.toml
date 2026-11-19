@@ -1,9 +1,8 @@
-model = "gpt-6-astra"
-model_reasoning_effort = "high"
 # Vibeproof reviewer (BD-43). install.md sets the available strong-tier model and effort here.
 # No model in this source template: installation resolves the signed-in account's choices.
 # Read-only here is a role, not enforced isolation: Codex agent files cannot set sandbox_mode
 # (it is inherited from the parent session), and only the shell tool can be switched off below.
+model = "gpt-6-astra"
 name = "vibeproof-reviewer"
 description = "Fresh read-only reviewer of a Vibeproof design or implementation. Use only when the vibeproof-design or vibeproof-finish skill asks for a fresh review."
 model_reasoning_effort = "high"

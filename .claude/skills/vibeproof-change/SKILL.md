@@ -23,7 +23,7 @@ For a repair read [repair](references/repair.md) first. To resume, pause or swit
 - Restate the result and what it is for in a sentence. Don't stop for confirmation of a clear request; fold any real
   question into the proposal.
 - Several wishes can be one change. Split when a part is useful on its own; queue the rest in
-  `product/queue.md`, reusing an existing item for the same outcome. If asked to prepare several
+  `product/queue/Q-<n>.md`, one file per item, reusing an existing item for the same outcome. If asked to prepare several
   tasks, save a brief for each requested task; a queue item or chat text alone does not deliver it.
 - **Keep one change small enough to finish in a sitting:** about 10 scenarios and 3 slices at
   most. Scope defined by an inventory ("every editor", "all 74 block types") is a series, not a

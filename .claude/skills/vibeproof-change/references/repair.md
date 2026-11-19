@@ -40,5 +40,5 @@ offer: a new approach, more observability and waiting, a larger agreed change, o
 developer with your notes.
 
 **Report.** Show what was wrong, what changed, the before/after evidence and the limits. If an earlier
-change let the defect through, name it and add a weak spot to `product/queue.md`; never edit the
+change let the defect through, name it and add a weak spot to `product/queue/Q-<n>.md`; never edit the
 closed change. If you don't know where it came from, say so.

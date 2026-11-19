@@ -20,7 +20,7 @@ Before the final run, so the checks cover what will be saved:
   decision they replace. Update glossary, operations or architecture notes only where their meaning
   changed. A task's "won't do" is not a permanent ban unless it was agreed as one.
 - Update the README, setup commands and config examples the change affects.
-- Queue anything observed but not done in `product/queue.md`, with its reason and next step.
+- Queue anything observed but not done in `product/queue/Q-<n>.md`, one file per item, with its reason and next step.
 - Read only the task's relevant operations recipe and its adopted/observing learning links. Record
   applicability, actual use, outcome/recurrence and evidence in this report, or unknown. See
   [history learning](references/history-learning.md#observe-use) for the next three applicable tasks.
