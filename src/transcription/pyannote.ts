@@ -3,6 +3,7 @@ import type {
   DeepgramWord,
   DeepgramResult,
   PyannoteJob,
+  PyannoteDiarizationSegment,
 } from '../types/index.js';
 
 const API_BASE = 'https://api.pyannote.ai/v1';
@@ -60,6 +61,7 @@ async function uploadMedia(
 async function submitDiarizeJob(
   apiKey: string,
   mediaUrl: string,
+  withTranscription = true,
 ): Promise<string> {
   const res = await fetch(`${API_BASE}/diarize`, {
     method: 'POST',
@@ -70,10 +72,14 @@ async function submitDiarizeJob(
       minSpeakers: 2,
       maxSpeakers: 2,
       exclusive: true,
-      transcription: true,
-      transcriptionConfig: {
-        model: 'faster-whisper-large-v3-turbo',
-      },
+      transcription: withTranscription,
+      ...(withTranscription
+        ? {
+          transcriptionConfig: {
+            model: 'faster-whisper-large-v3-turbo',
+          },
+        }
+        : {}),
     }),
   });
 
@@ -191,6 +197,37 @@ function toDeepgramFormat(job: PyannoteJob): DeepgramResult {
   );
 
   return { utterances };
+}
+
+/**
+ * Diarization only — no transcription. Used when speech-to-text is
+ * handled elsewhere (e.g. a local GigaAM model).
+ */
+export async function diarizeAudio(
+  audioBuffer: Buffer,
+  mimeType: string,
+  apiKey: string,
+  onProgress?: (msg: string) => void,
+): Promise<PyannoteDiarizationSegment[]> {
+  const log = onProgress ?? (() => {});
+
+  log('Uploading audio to PyannoteAI...');
+  const mediaUrl = await uploadMedia(apiKey, audioBuffer, mimeType);
+
+  log('Submitting diarization job (Precision-2, no ASR)...');
+  const jobId = await submitDiarizeJob(apiKey, mediaUrl, false);
+  log(`Job created: ${jobId}`);
+
+  const job = await pollJob(apiKey, jobId, (status) => {
+    log(`Status: ${status}...`);
+  });
+
+  const segments = job.output?.diarization ?? [];
+  if (segments.length === 0) {
+    throw new Error('No speech detected in the audio.');
+  }
+
+  return segments;
 }
 
 export async function transcribeAudio(

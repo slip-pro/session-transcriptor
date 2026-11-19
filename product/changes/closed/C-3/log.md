@@ -1,0 +1,30 @@
+# C-3 log
+
+## Slice 1
+- Hero button is «Выбрать аудио» (as in design/mockup); «Добавить запись» lives in the heading. Cost if wrong: one label.
+- Note-only pill reads «Встреча без записи» (design's processingLabel), not «Только заметка» from the mockup.
+- `tests/cabinet-materials.test.ts`: one setup line now assigns roles before downloading Word (the test is about private-notes exclusion; download without roles is now 409 by agreement). Assertions unchanged.
+- Add-meeting dialog link «Импорт JSON или последнего задания» renamed «У меня готовый текст» (it opened the same form); error texts in api.ts reworded without JSON.
+- `store.listSessions` now parses utterances_json per row to compute `rolesAssigned` via `rolesComplete` (cost: slightly more work per list).
+- Old font-size 11/12px rules overridden to 13px by a generated block at the end of room.css (same media wrappers).
+- C-2 browser scripts not touched (expected red on renamed texts).
+- Slice 1 done 2026-11-06: foundation, chairs, rolesComplete (store/route 409), meetingState, home, history rows, forms. npm test 82 pass/1 skip, typecheck+lint clean, c3-home browser PASS. Nav active pill still old lilac — polish in slice 3.
+
+## Slice 2
+- Roles screen test creates sessions through the API (document names set) and opens them via «Подсказать»; the picker import itself is C-2 behaviour covered by the journey script.
+- Word labels speakers «Коуч»/«Клиент» (names sit in the document header), so the docx check asserts that label on the right phrase, plus both names present.
+- 1 voice / 3+ voices / only unknown: per-voice cards with the existing role select, no swap, «Читать и слушать» link; seats keep their column on swap, phrases move.
+- «Послушать отрывок» is rendered only when the session has audio; not exercised in the browser script (no synthetic audio in the roles sessions). Cost if wrong: untested toggle.
+- C-2 scripts: renamed home/roles headings everywhere; no-roles Word assertions in slice2/metadata-red replaced by «no без ролей text» + 409; journey «Это я» → «Всё верно — сделать документ»; slice2 gets a wait until paragraph tools are enabled before the edit click (busy flag stays set briefly after a bookmark save; click was lost).
+- Reader name label is now a flex row (chair face + role select), forced with !important because older rules centre it.
+
+## Slice 3
+- Nav active state is the ink pill (white text) on every cabinet screen; focus ring on nav buttons added.
+- Visual script found and fixed: white-on-white «Скачать Word» in the ready card (base `.cc-button` has `color:white!important`), seats confirm button overflowing at 320px, muted texts at 4.0-4.4 contrast (inline help/status, history date, client request, archive tab, empty-audio text), no outline on ContextField triggers (older transfer rule set `outline:0`), login hero padding/colour at 390.
+- «Послушать отрывок» now covered by `tests/cabinet-c3-listen.cjs` (tone attached through the audio PUT API): play, label «Пауза», other seat pauses, second click pauses.
+- C-2 scripts adjusted for removed/renamed UI only: smoke (note button label), metadata-screenshots (click on footer instead of the removed hint), audio-source (attaches audio first, since seat previews now render only with audio). Assertions unchanged.
+- Visual contrast check treats all text as normal (4.5) and ignores text over background images/gradients (none found in sampled screens).
+- Review fix 1: focus ring inside the dark «Документ готов» card is now light #F8E3A3 (room.css); visual check extended to Tab onto «Скачать Word» and «Читать и слушать», contrast >=3:1 (was 2.66, red before, green after).
+- Review fix 2: «Скачать Word» shows on phone home rows under the text (removed display:none at <=760px); c3-home asserts it is visible, >=44px, inside 390px (red before, green after).
+- Review fix 3: new pure helper rowAction(summary) in processing.tsx used by workspace.tsx and history-notes.tsx; Word offered whenever text and complete roles exist, even after a failed run; unit test in cabinet-ux.test.ts (red: not a function, green 6/6).
+- Finish: follow-up review of fixes clean; added unit case failed+text+no roles → «Подсказать» (cabinet-ux 6/6).

@@ -4,7 +4,8 @@ You are a coaching session transcription assistant. The user wants to transcribe
 $ARGUMENTS = path to audio file (e.g. `./recordings/session.mp3`) or path to existing `*_utterances.json`
 
 Optional flags in $ARGUMENTS:
-- `--provider pyannote` or `--provider deepgram` — choose transcription provider
+- `--provider pyannote`, `--provider deepgram` or `--provider gigaam` — choose transcription provider
+- `--diarizer pyannote|deepgram` — only with `--provider gigaam`, picks where speaker turns come from
 - If no `--provider` flag, ask the user (see Step 1)
 
 ## Step 1: Transcribe (or reuse existing)
@@ -19,13 +20,16 @@ If no existing file or user wants re-transcription:
 **Otherwise**, ask the user which provider to use:
 - **Deepgram** (default) — fast, good for clear audio with distinct voices
 - **PyannoteAI** — best diarization quality, recommended for same-gender speakers or when speaker attribution matters
+- **GigaAM** — best quality for **Russian** sessions, runs locally (no per-minute cost, audio stays on the machine). Needs a diarizer: `pyannote` (default, best) or `deepgram`. Do not offer it for English audio.
 
 Then run:
 ```
-cd "d:\CODING\sessinons transcriptor" && npx tsx src/cli/transcribe.ts "<audio-file>" --provider <deepgram|pyannote>
+cd "d:\CODING\sessinons transcriptor" && npx tsx src/cli/transcribe.ts "<audio-file>" --provider <deepgram|pyannote|gigaam> [--diarizer <pyannote|deepgram>]
 ```
 
 **Note:** PyannoteAI is async — the CLI uploads audio, submits a job, and polls for results. This may take 2-5 minutes for a typical session. The CLI prints progress to stderr. Use a 10-minute timeout for the command.
+
+**Note:** GigaAM output is raw lowercase text without punctuation. That is expected — Step 3 adds sentence casing and punctuation while keeping the wording verbatim.
 
 This produces a `*_utterances.json` file next to the audio and prints a preview with speakers.
 

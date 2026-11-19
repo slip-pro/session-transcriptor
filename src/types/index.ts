@@ -1,6 +1,47 @@
 // --- Provider types ---
 
-export type TranscriptionProvider = 'deepgram' | 'pyannote';
+export type TranscriptionProvider =
+  | 'deepgram'
+  | 'pyannote'
+  | 'gigaam';
+
+// --- GigaAM types ---
+
+/**
+ * Local GigaAM checkpoints. The plain `rnnt` variant is the most
+ * accurate; `e2e_*` variants add punctuation and normalization at the
+ * cost of a noticeably higher WER.
+ */
+export type GigaAMModel =
+  | 'v3_rnnt'
+  | 'v3_ctc'
+  | 'v3_e2e_rnnt'
+  | 'v3_e2e_ctc'
+  | 'v2_rnnt'
+  | 'v2_ctc';
+
+/**
+ * `window` transcribes continuous speech and assigns speakers per word,
+ * so the model keeps sentence context. `turn` transcribes each
+ * diarization turn separately — simpler, but noticeably worse on short
+ * replies.
+ */
+export type GigaAMMode = 'window' | 'turn';
+
+export interface GigaAMSegment {
+  speaker: string;
+  start: number;
+  end: number;
+  text: string;
+}
+
+export interface GigaAMResult {
+  model: string;
+  mode: GigaAMMode;
+  device: string;
+  elapsedSec: number;
+  segments: GigaAMSegment[];
+}
 
 // --- PyannoteAI types ---
 
@@ -18,11 +59,17 @@ export interface PyannoteTurn {
   speaker: string;
 }
 
-export interface PyannoteDiarizationSegment {
+/** Speaker turn boundaries, independent of who produced them. */
+export interface DiarizationSegment {
   speaker: string;
   start: number;
   end: number;
 }
+
+export type PyannoteDiarizationSegment = DiarizationSegment;
+
+/** Where speaker turns come from when ASR is done separately. */
+export type DiarizationSource = 'pyannote' | 'deepgram';
 
 export interface PyannoteJobOutput {
   diarization: PyannoteDiarizationSegment[];

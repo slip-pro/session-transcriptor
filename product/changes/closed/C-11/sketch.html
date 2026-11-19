@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Главная с блоком транскрибатора</title>
+<style>
+:root{--bg:#f8f6f3;--ink:#302b32;--muted:#706873;--accent:#673e62;--line:#e4dfe3;--soft:#FDF3D3;--btn:#2f2729}
+*{box-sizing:border-box}
+body{margin:0;background:#ebe7e3;color:var(--ink);font:17px/1.6 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+h1,h2{margin:0;font-weight:600;text-wrap:balance}
+p{margin:0;text-wrap:pretty}
+.note{max-width:1200px;margin:0 auto;padding:28px 16px 12px}
+.note h1{font-size:24px}
+.note p{color:var(--muted);margin-top:8px;max-width:820px;font-size:15px}
+.frame{max-width:1200px;margin:8px auto 48px;background:var(--bg);border:1px solid #d9d2cc;border-radius:12px;overflow:hidden}
+.login{display:grid;grid-template-columns:1fr 1fr;gap:80px;max-width:1120px;margin:auto;padding:72px 40px 72px}
+.intro{background:var(--soft);padding:48px 64px;display:flex;flex-direction:column;justify-content:center}
+.wordmark{font-weight:700;font-size:20px}
+.intro svg{width:240px;height:auto;margin:24px 0}
+.intro h1{font-size:46px;line-height:1.12;letter-spacing:-.04em}
+.intro p{font-size:19px;line-height:30px;color:#745e65;margin-top:18px}
+.right{align-self:center;display:flex;flex-direction:column;gap:20px}.card{background:#fff;border:1px solid var(--line);border-radius:10px;padding:36px}.card.t{padding:24px 36px}.card.t h2{font-size:20px;font-weight:600}.card.t p{color:var(--muted);font-size:15px;line-height:23px;margin-top:6px}.card.t .price{color:var(--ink);font-size:14px;margin-top:8px}.card.t .row{display:flex;align-items:center;gap:16px;margin-top:16px;flex-wrap:wrap}.btn2{display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:0 20px;border-radius:12px;border:1px solid var(--btn);color:var(--btn);font-weight:600;font-size:15px;text-decoration:none}.card.t .row a.link{font-size:14px;color:var(--muted);text-decoration:underline}
+.card h2{font-size:28px}
+.card .muted{color:var(--muted);margin:10px 0 24px}
+.lbl{display:block;font-size:15px;margin-top:14px}
+.input{margin-top:6px;height:48px;border:1px solid var(--line);border-radius:6px;background:#eef3fb}
+.btn{display:flex;align-items:center;justify-content:center;min-height:48px;margin-top:20px;border-radius:12px;background:var(--btn);color:#fff;font-weight:600;font-size:16px;text-decoration:none}
+.hint{font-size:13px;line-height:20px;color:var(--muted);margin-top:22px}
+.priv{display:block;font-size:13px;color:var(--muted);margin-top:16px}
+.new{outline:2px dashed #7e9a6f;outline-offset:6px}
+@media(max-width:900px){.login{gap:32px;padding:40px 24px 20px}.intro{padding:40px}.intro h1{font-size:38px}}
+@media(max-width:760px){
+ .login{display:block;padding:24px 16px 16px}
+ .intro{padding:24px 20px}.intro svg{display:none}.intro h1{font-size:32px;margin-top:16px}.intro p{font-size:16px;line-height:24px;margin-top:12px}
+ .right{margin-top:16px;gap:16px}.card{padding:24px 20px}.card.t{padding:20px}.card h2{font-size:24px}.card.t h2{font-size:19px}.card.t .row{flex-direction:column;align-items:stretch;text-align:center}
+}
+</style>
+</head>
+<body>
+<div class="note">
+<h1>Главная: тот же экран входа плюс второй блок «транскрибатор»</h1>
+<p>Основа — нынешний экран <code>/cabinet</code>. Левый блок не меняется. Справа два белых блока друг под другом: основной — вход в кабинет, как сейчас; под ним, обведён пунктиром, — вход в транскрибатор, в том же стиле, но тише. Ссылка «К транскрибатору» под формой уходит — её заменяет второй блок. Вход в кабинет остаётся по приглашению, как сейчас. Кнопки никуда не ведут.</p>
+</div>
+
+<div class="frame">
+<main class="login">
+<section class="intro">
+<span class="wordmark">Своя практика</span>
+<svg viewBox="0 0 420 260" aria-hidden="true">
+<path d="M46 234V111C46 55 91 19 146 19h131c57 0 97 41 97 97v118H46Z" fill="#EFD7C4"/>
+<path d="M148 145V73c0-25 20-45 45-45s45 20 45 45v72H148Z" fill="#FCF3DD"/>
+<path d="M193 29v116M148 91h90" stroke="#CFAD8E" stroke-width="4"/>
+<ellipse cx="211" cy="233" rx="131" ry="13" fill="#DBC2AE"/>
+<path d="M80 147c0-18 13-31 30-31h20c17 0 30 13 30 31v43H80v-43Z" fill="#A76679"/>
+<path d="M76 177c0-9 7-16 16-16s16 7 16 16v15h30v-15c0-9 7-16 16-16s16 7 16 16v23c0 8-6 14-14 14H90c-8 0-14-6-14-14v-23Z" fill="#925469"/>
+<path d="M259 147c0-18 13-31 30-31h20c17 0 30 13 30 31v43h-80v-43Z" fill="#7F947E"/>
+<path d="M249 177c0-9 7-16 16-16s16 7 16 16v15h30v-15c0-9 7-16 16-16s16 7 16 16v23c0 8-6 14-14 14h-66c-8 0-14-6-14-14v-23Z" fill="#667D69"/>
+<ellipse cx="211" cy="199" rx="38" ry="9" fill="#D4B684"/>
+<path d="M359 203v-49" stroke="#647D57" stroke-width="3"/><path d="M347 202h24l-3 32h-18l-3-32Z" fill="#B38362"/>
+<path d="M69 107V66" stroke="#A17C59" stroke-width="3"/><path d="M51 67c0-12 8-20 18-20s18 8 18 20H51Z" fill="#CFA65B"/>
+</svg>
+<h1>Твои встречи.<br>Всё под рукой.</h1>
+<p>Преврати запись в Word.<br>Сохрани мысли после встречи.</p>
+</section>
+<div class="right">
+<section class="card">
+<h2>С возвращением</h2>
+<p class="muted">Открой свой кабинет.</p>
+<span class="lbl">Email</span><div class="input"></div>
+<span class="lbl">Пароль</span><div class="input"></div>
+<a class="btn" href="#">Войти в кабинет</a>
+<p class="hint">Доступ выдаёт владелец сервиса. Для восстановления пароля обратись к нему.</p>
+<a class="priv" href="#">О хранении данных</a>
+</section>
+<section class="card t new">
+<h2>Мне нужен только транскрибатор</h2>
+<p>Загрузи запись сессии — получишь Word в формате ICF для менторинга. Без клиентов и заметок.</p>
+<p class="price"><b>3 записи бесплатно</b>, дальше 350 ₽ в месяц без ограничений</p>
+<div class="row"><a class="btn2" href="#">Начать бесплатно</a><a class="link" href="#">Уже есть аккаунт</a></div>
+</section>
+</div>
+</main>
+
+</div>
+</body>
+</html>

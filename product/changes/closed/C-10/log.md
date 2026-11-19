@@ -1,0 +1,13 @@
+# C-10 log
+- Old-site page edits (`app/page.tsx` cabinet link/folded options/background, `app/globals.css` body font) parked in `.local/web/.local/c10-old-site-edits.patch`; files restored from HEAD so transcribe.kiberry.ai stays as now. Cost if wrong: owner wanted the cabinet link on the old site — reapply the patch.
+- Vibeproof checks installed in branch `codex/linux-hosting` with a copy of C-10 brief/design (owner: «Да, окей»). Cost if wrong: two copies of C-10 docs can drift — operations.md says to keep them in sync.
+- `package-lock.json` (better-auth, @types/node 22) committed with guard-ok (owner: «Да»).
+- Slice 1: `markAudioExpired` also takes the storage id, so a re-attach racing the sweep is never marked expired. Cost if wrong: none.
+- Slice 1: a successful formatting run marks Codex ok only with the real formatter (an injected formatter proves nothing about the login). Cost if wrong: health stays on the last probe result for up to 60 min.
+- Slice 1: privacy page sentence about audio storage updated to the 30-day rule (otherwise it contradicts the brief). Cost if wrong: one sentence.
+- Slice 2: base image keeps Node v24.22.2 — no bump needed.
+- Slice 2: one image tag for web and worker; rollback to the two old tags uses the previous compose file (README). Cost if wrong: a slower rollback.
+- Slice 2: cabinet uploads share the old site's global upload rate (1/min, burst 2). Fine for a pilot of two people; cost if wrong: a second upload within a minute gets «подожди» and is retried.
+- Slice 2: test pulls alpine, nginx:1.27-alpine, curlimages/curl (floating tag) into the local Docker cache; left there.
+- Slice 3: WAV vs Opus on the first 180 s — word agreement 0.98, Opus 5.4× smaller; two Deepgram calls, 360 s, ~$0.04.
+- Slice 3: local worker uses CODEX_BIN = desktop-app codex 0.167.0; codex 0.36.0 on PATH cannot read this computer's config. Local Codex login revoked (401 token_revoked) — health showed codex_login_failed live; full run waits for the owner to sign in.

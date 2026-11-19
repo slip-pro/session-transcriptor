@@ -1,0 +1,13 @@
+# Python side of the GigaAM provider (local ASR).
+#
+# Setup:
+#   python -m venv .venv
+#   .venv/Scripts/python.exe -m pip install torch torchaudio \
+#       --index-url https://download.pytorch.org/whl/cu128
+#   .venv/Scripts/python.exe -m pip install -r scripts/requirements.txt
+#
+# torch/torchaudio are installed separately so the CUDA build matches
+# the local GPU. CPU-only works too, just much slower.
+
+gigaam @ git+https://github.com/salute-developers/GigaAM.git
+imageio-ffmpeg
